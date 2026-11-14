@@ -1,0 +1,29 @@
+{
+  "name": "@bountiq/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "predev": "npm run build --prefix ../security",
+    "prebuild": "npm run build --prefix ../security",
+    "pretypecheck": "npm run build --prefix ../security",
+    "pretest": "npm run build --prefix ../security",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
+    "hono": "4.13.18",
+    "zod": "4.6.7",
+    "@bountiq/security": "file:../security",
+    "@hono/node-server": "2.1.8"
+  },
+  "devDependencies": {
+    "@types/node": "24.5.2",
+    "tsx": "4.20.5",
+    "typescript": "5.9.3"
+  }
+}
