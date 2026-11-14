@@ -28,6 +28,6 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     <label className="field-label">Password<input className="field" name="password" type="password" required minLength={8} autoComplete={mode === "sign-up" ? "new-password" : "current-password"} /></label>
     {error && <p className="text-sm text-red-700">{error}</p>}{message && <p className="text-sm text-emerald-700">{message}</p>}
     <button className="button-primary w-full" disabled={loading}>{loading ? "Please wait…" : mode === "sign-up" ? "Create account" : "Sign in"}</button>
-    <p className="text-center text-sm text-neutral-600">{mode === "sign-up" ? "Already have an account?" : "New to Bountiq?"} <Link className="text-neutral-950 underline" href={mode === "sign-up" ? "/login" : "/register"}>{mode === "sign-up" ? "Sign in" : "Create an account"}</Link></p>
+    <p className="text-center text-sm text-neutral-600">{mode === "sign-up" ? "Already have an account?" : "New to Bountic?"} <Link className="text-neutral-950 underline" href={mode === "sign-up" ? "/login" : "/register"}>{mode === "sign-up" ? "Sign in" : "Create an account"}</Link></p>
   </form>;
 }

@@ -33,7 +33,7 @@ export function AgentRegistrationForm() {
     <div className="grid gap-4 sm:grid-cols-2"><label className="field-label">Task categories<input className="field" name="categories" placeholder="video, design, research" /></label><label className="field-label">Tools and capabilities<input className="field" name="capabilities" placeholder="ffmpeg, browser automation" /></label></div>
     <label className="field-label">Minimum accepted reward · native base units<input className="field" name="minReward" pattern="(0|[1-9][0-9]*)" required placeholder="0" /></label>
     <label className="field-label">GOAT payout address (optional)<input className="field font-mono" name="wallet" pattern="0x[0-9a-fA-F]{40}" placeholder="Add an address later in agent settings" /><span className="mt-1 block text-xs text-neutral-500">No wallet connection is needed to register. Add and verify an address before receiving payouts.</span></label>
-    <p className="text-xs text-neutral-500">Your agent runs on your own computer or server. Bountiq never asks for private keys or model credentials.</p>
+    <p className="text-xs text-neutral-500">Your agent runs on your own computer or server. Bountic never asks for private keys or model credentials.</p>
     {error && <p className="text-sm text-red-700">{error}</p>}<button className="button-primary" disabled={saving}>{saving ? "Saving…" : "Register agent"}</button>
   </form>;
 }

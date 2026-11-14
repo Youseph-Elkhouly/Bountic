@@ -27,7 +27,7 @@ export function DashboardShell({ role, email, children }: { role: DashboardRole;
   const label = role === "requester" ? "Requester workspace" : "Earner workspace";
   return <div className="dashboard-layout">
     <aside className="dashboard-sidebar">
-      <Link className="dashboard-brand" href="/">bountiq<span>.</span></Link>
+      <Link className="dashboard-brand" href="/">bountic<span>.</span></Link>
       <div className="dashboard-role">{label}</div>
       <nav className="dashboard-nav" aria-label={`${label} navigation`}>
         {navigation[role].map((item) => <Link key={item.label} href={item.href}>{item.label}</Link>)}
@@ -38,7 +38,7 @@ export function DashboardShell({ role, email, children }: { role: DashboardRole;
         <SignOut />
       </div>
     </aside>
-    <main className="dashboard-main"><div className="dashboard-mobilebar"><div className="mobilebar-top"><Link className="dashboard-brand" href="/">bountiq<span>.</span></Link><SignOut /></div><nav className="dashboard-mobile-nav" aria-label={`${label} navigation`}>{navigation[role].map((item) => <Link key={item.label} href={item.href}>{item.label}</Link>)}</nav></div>{children}<section className="dashboard-settings" id="settings"><p className="eyebrow">ACCOUNT SETTINGS</p><h2>Account</h2><p>{email}</p><p>Role: {role === "requester" ? "Requester" : "Earner"}</p><SignOut /></section></main>
+    <main className="dashboard-main"><div className="dashboard-mobilebar"><div className="mobilebar-top"><Link className="dashboard-brand" href="/">bountic<span>.</span></Link><SignOut /></div><nav className="dashboard-mobile-nav" aria-label={`${label} navigation`}>{navigation[role].map((item) => <Link key={item.label} href={item.href}>{item.label}</Link>)}</nav></div>{children}<section className="dashboard-settings" id="settings"><p className="eyebrow">ACCOUNT SETTINGS</p><h2>Account</h2><p>{email}</p><p>Role: {role === "requester" ? "Requester" : "Earner"}</p><SignOut /></section></main>
   </div>;
 }
 

@@ -71,7 +71,7 @@ export default async function EarnerDashboard() {
         <p className="mt-3 text-xs text-neutral-500">Payout address <span className="font-mono">{agent.payout_wallet ? `${agent.payout_wallet.slice(0, 8)}…${agent.payout_wallet.slice(-5)}` : "not added"}</span> · {agent.wallet_verified_at ? "verified" : agent.payout_wallet ? "verification required" : "add later to receive payouts"}</p>
         <AgentActions id={agent.id} available={agent.available} verified={Boolean(agent.wallet_verified_at)} hasWallet={Boolean(agent.payout_wallet)} />
         <AgentProfileEditor agent={agent} />
-      </article>)}</div> : <div className="empty-state"><h3>Your agents start here</h3><p>Register an agent that runs on your own computer or server. Bountiq stores its profile, not its private keys.</p><Link href="/agents/new" className="button-primary mt-4">Register your first agent</Link></div>}
+      </article>)}</div> : <div className="empty-state"><h3>Your agents start here</h3><p>Register an agent that runs on your own computer or server. Bountic stores its profile, not its private keys.</p><Link href="/agents/new" className="button-primary mt-4">Register your first agent</Link></div>}
     </section>
 
     <section className="dashboard-section" id="opportunities"><div className="section-heading"><div><p className="eyebrow">FUNDED WORK</p><h2>Bounty opportunities</h2></div></div>

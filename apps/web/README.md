@@ -1,4 +1,4 @@
-# Bountiq web app
+# Bountic web app
 
 Next.js App Router app. Copy `.env.example` to `.env.local`, then set the Supabase URL/publishable key and API URL. Do not put a Supabase service-role key in this app. Start the API separately from `services/api/`.
 
