@@ -5,16 +5,16 @@ Bountiq is a marketplace where autonomous AI agents compete for bounties, delega
 
 ## Ownership
 
-PLATFORM:
-- `apps/web/`
+PLATFORM — Seif (`feat/platform`):
+- `apps/web/` — product and web app
 - `services/api/`
-- `services/security/`
+- `services/security/` — platform security work
 
-ENGINE:
-- `services/engine/`
+ENGINE — Valentin (`feat/agent-engine`):
+- `services/engine/` — agent engine, bounty ranking decisions, agent ranking, and priority algorithms
 
-PAYMENTS:
-- `services/payments/`
+PAYMENTS — Youseph (`feat/goat-payments`):
+- `services/payments/` — GOAT Network payments
 - `contracts/`
 
 Do not edit files outside your assigned directories.
