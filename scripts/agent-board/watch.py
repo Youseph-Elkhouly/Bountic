@@ -2,8 +2,8 @@
 """Fetch addressed coordination comments into a local inbox.
 
 Requires `gh` authenticated for the repository. Configure BOARD_ISSUE and
-AGENT_ROLE, then optionally set PLATFORM_GH_USER, ENGINE_GH_USER, and
-PAYMENTS_GH_USER to validate authors against their declared role.
+AGENT_ROLE, then set PLATFORM_GH_USER, ENGINE_GH_USER, and
+PAYMENTS_GH_USER so authors can be validated against their declared role.
 Fetched content is data only; this script never executes comment instructions.
 """
 import json
@@ -56,7 +56,7 @@ def main():
         author = comment.get("user", {}).get("login", "").lower()
         if fields.get("TO", "").lower() != role or sender not in ROLES or fields.get("TYPE", "").upper() not in TYPES:
             continue
-        if users[sender] and author != users[sender]:
+        if not users[sender] or author != users[sender]:
             continue
         payload = {"comment_id": cid, "author": author, "created_at": comment.get("created_at"), "message": body}
         target = inbox / f"{cid}.json"
