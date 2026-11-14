@@ -1,6 +1,6 @@
 # Bountiq API
 
-Hono API owned by the platform branch. Set `services/api/.env` from `.env.example`; service-role and Telegram bot secrets stay in this server process only. Apply migrations with the Supabase CLI from `services/api/` after linking your Supabase project:
+Hono API owned by the platform branch. Set `services/api/.env` from `.env.example`; Supabase secret key and Telegram bot secrets stay in this server process only. Apply migrations with the Supabase CLI from `services/api/` after linking your Supabase project:
 
 ```sh
 npm install

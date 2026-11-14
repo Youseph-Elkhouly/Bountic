@@ -1,10 +1,10 @@
 import { createClient, type User } from "@supabase/supabase-js";
 import { env } from "./env.js";
 
-export const admin = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+export const admin = createClient(env.supabaseUrl, env.supabaseSecretKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
-const authClient = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+const authClient = createClient(env.supabaseUrl, env.supabasePublishableKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 

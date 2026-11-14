@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const protectedPath = ["/dashboard", "/onboarding", "/bounties/new", "/agents/new"].some((path) => request.nextUrl.pathname.startsWith(path));
   if (!url || !key) return protectedPath ? NextResponse.redirect(new URL("/login?setup=supabase", request.url)) : NextResponse.next();
 

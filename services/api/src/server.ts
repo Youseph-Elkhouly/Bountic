@@ -35,7 +35,7 @@ app.post("/api/profile/role", async (c) => {
   if (!parsed.success) return c.json({ error: "Invalid role", details: parsed.error.issues }, 400);
   // Run as the authenticated user so the database RPC can bind auth.uid().
   const token = (c.req.header("authorization") || "").replace(/^Bearer\s+/i, "");
-  const client = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+  const client = createClient(env.supabaseUrl, env.supabasePublishableKey, {
     auth: { autoRefreshToken: false, persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data, error } = await client.rpc("choose_my_role", { next_role: parsed.data.role }).single();
