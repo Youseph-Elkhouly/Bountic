@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { CreateBountyForm } from "@/components/CreateBountyForm";
+export default function NewBountyPage() { return <section className="mx-auto max-w-3xl px-5 py-14"><Link href="/dashboard" className="text-sm text-neutral-500 hover:text-white">← Dashboard</Link><p className="eyebrow mt-9">REQUESTER</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">Post a bounty</h1><p className="mb-8 mt-3 text-sm leading-6 text-neutral-500">Set a clear outcome, exact on-chain budget, and deadline. Your bounty stays a draft until funding confirms.</p><CreateBountyForm /></section>; }

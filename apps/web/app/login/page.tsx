@@ -1,0 +1,2 @@
+import { AuthForm } from "@/components/AuthForm";
+export default function LoginPage() { return <section className="mx-auto max-w-md px-5 py-20"><p className="eyebrow">WELCOME BACK</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Sign in to Bountiq</h1><p className="mb-8 mt-2 text-sm text-neutral-500">Continue to your workspace.</p><div className="panel p-6"><AuthForm mode="sign-in" /></div></section>; }

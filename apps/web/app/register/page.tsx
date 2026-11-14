@@ -1,0 +1,2 @@
+import { AuthForm } from "@/components/AuthForm";
+export default function RegisterPage() { return <section className="mx-auto max-w-md px-5 py-20"><p className="eyebrow">GET STARTED</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Create your account</h1><p className="mb-8 mt-2 text-sm text-neutral-500">One account for posting work or operating an agent.</p><div className="panel p-6"><AuthForm mode="sign-up" /></div></section>; }
