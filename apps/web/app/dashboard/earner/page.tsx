@@ -5,6 +5,7 @@ import { AgentProfileEditor } from "@/components/AgentProfileEditor";
 import { AgentResponse } from "@/components/AgentResponse";
 import { AgentSubmissionForm } from "@/components/AgentSubmissionForm";
 import { DashboardLoadError, DashboardShell, MetricCard, StatusPill } from "@/components/DashboardShell";
+import { QatomReceipts, qatomReceiptColumns, totalUsdTdn, type QatomReceipt } from "@/components/QatomReceipts";
 import { TelegramLink } from "@/components/TelegramLink";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,15 +27,17 @@ export default async function EarnerDashboard() {
 
   const agentRows = agents || [];
   const agentIds = agentRows.map((agent) => agent.id);
-  const [matchResult, submissionResult] = await Promise.all([
+  const [matchResult, submissionResult, receiptResult] = await Promise.all([
     agentIds.length ? supabase.from("bounty_matches").select("id,bounty_id,agent_id,score,notification_status,created_at").in("agent_id", agentIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     agentIds.length ? supabase.from("submissions").select("id,bounty_id,agent_id,proposed_amount_base_units,deliverable_type,deliverable_url,storage_path,description,winner,submitted_at").in("agent_id", agentIds).order("submitted_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
+    agentIds.length ? supabase.from("qatom_receipts").select(qatomReceiptColumns).in("agent_id", agentIds).order("occurred_at", { ascending: false }).limit(20) : Promise.resolve({ data: [], error: null }),
   ]);
-  const loadIssue = matchResult.error || submissionResult.error;
+  const loadIssue = matchResult.error || submissionResult.error || receiptResult.error;
   if (loadIssue) return <DashboardShell role="earner" email={user.email || "Account"}><DashboardLoadError title="Could not load agent work" message={loadIssue.message} /></DashboardShell>;
   const matches = matchResult.data || [];
   const submissions = submissionResult.data || [];
-  const bountyIds = [...new Set([...matches.map((item) => item.bounty_id), ...submissions.map((item) => item.bounty_id)])];
+  const receipts = (receiptResult.data || []) as QatomReceipt[];
+  const bountyIds = [...new Set([...matches.map((item) => item.bounty_id), ...submissions.map((item) => item.bounty_id), ...receipts.map((item) => item.bounty_id)])];
   const [bountyResult, paymentResult] = await Promise.all([
     bountyIds.length ? supabase.from("bounties").select("id,title,description,category,required_skills,deliverable_requirements,max_budget_base_units,asset_symbol,display_fiat_amount,display_fiat_currency,deadline,status").in("id", bountyIds) : Promise.resolve({ data: [], error: null }),
     bountyIds.length ? supabase.from("payments").select("id,bounty_id,kind,status,amount_base_units,tx_hash,explorer_url,created_at,submission_id").in("bounty_id", bountyIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
@@ -93,6 +96,11 @@ export default async function EarnerDashboard() {
         {payments.filter((payment) => payment.kind === "settlement").length > 0 && <div className="mt-3 space-y-2">{payments.filter((payment) => payment.kind === "settlement").slice(0, 6).map((payment) => <article className="activity-row" key={payment.id}><span><strong>Settlement · {amount(payment.amount_base_units)} units</strong><small>{new Date(payment.created_at).toLocaleString()}</small>{payment.tx_hash && <small className="font-mono">{payment.tx_hash.slice(0, 10)}…{payment.tx_hash.slice(-6)}</small>}</span><span className="flex items-center gap-2"><StatusPill value={payment.status} />{payment.explorer_url && <a className="text-xs underline" href={payment.explorer_url} target="_blank" rel="noreferrer">Receipt</a>}</span></article>)}</div>}
       </section>
     </div>
+
+    <section className="dashboard-section" id="tool-spending"><div className="section-heading"><div><p className="eyebrow">QATOM</p><h2>Tool and data purchases</h2></div><span className="text-sm text-neutral-500">{totalUsdTdn(receipts)} USD-TDN spent</span></div>
+      {receipts.some((receipt) => receipt.status === "pending_approval") && <p className="mb-3 text-sm text-neutral-600">Purchases above your agent&apos;s auto-approve limit need your approval. Approval links expire after about 15 minutes.</p>}
+      <QatomReceipts receipts={receipts} bountyTitles={new Map(bounties.map((bounty) => [bounty.id, bounty.title]))} agentNames={new Map(agentRows.map((agent) => [agent.id, agent.name]))} showApprovalLinks />
+    </section>
 
     <section className="dashboard-section"><div className="section-heading"><div><p className="eyebrow">ACCOUNT CONNECTION</p><h2>Telegram</h2></div></div><div className="panel p-5"><p className="mb-4 text-sm text-neutral-600">Connect the account that receives matched bounty invitations. Messages do not automatically start the agent on your computer.</p><TelegramLink /></div></section>
   </DashboardShell>;

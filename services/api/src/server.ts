@@ -5,7 +5,8 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { env, assertServerConfig } from "./env.js";
 import { admin, authenticate, recordAudit, userRole } from "./supabase.js";
-import { agentSchema, bountySchema, roleSchema, submissionSchema } from "./schemas.js";
+import { agentSchema, bountySchema, qatomReceiptSchema, roleSchema, submissionSchema } from "./schemas.js";
+import { planQatomReceiptWrite, qatomReceiptRow } from "./qatom.js";
 import { payments, requestMatches } from "./integrations.js";
 import { persistEligibleMatches } from "./matching.js";
 import { telegram } from "./telegram.js";
@@ -565,6 +566,31 @@ app.post("/internal/notifications/dispatch", async (c) => {
     }
   }
   return c.json({ sent, considered: jobs?.length ?? 0 });
+});
+
+app.post("/internal/qatom/receipts", async (c) => {
+  if (!env.internalWorkerToken || !verifySharedSecret(c.req.header("authorization")?.replace(/^Bearer\s+/i, ""), env.internalWorkerToken)) return c.json({ error: "Unauthorized" }, 401);
+  const parsed = qatomReceiptSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "Invalid Qatom receipt", details: parsed.error.issues }, 400);
+  const input = parsed.data;
+  const { data: agent } = await admin.from("agents").select("id").eq("id", input.agentId).maybeSingle();
+  const { data: bounty } = await admin.from("bounties").select("id").eq("id", input.bountyId).maybeSingle();
+  if (!agent || !bounty) return c.json({ error: "Bounty or agent not found" }, 404);
+  const columns = "id,idempotency_key,bounty_id,agent_id,status,transaction_id,item_id,item_name,seller,amount_usd_tdn,approval_url,rejection_reason,occurred_at,created_at,updated_at";
+  const { data: existing, error: lookupError } = await admin.from("qatom_receipts").select(columns).eq("idempotency_key", input.idempotencyKey).maybeSingle();
+  if (lookupError) return c.json({ error: "Could not load Qatom receipt" }, 500);
+  const plan = planQatomReceiptWrite(existing, input);
+  if (plan === "conflict") return c.json({ error: "A different purchase is already recorded for this idempotency key", receipt: existing }, 409);
+  if (plan === "duplicate") return c.json({ receipt: existing, duplicate: true });
+  const row = qatomReceiptRow(input);
+  const { data, error } = plan === "insert"
+    ? await admin.from("qatom_receipts").insert(row).select(columns).single()
+    : await admin.from("qatom_receipts").update(row).eq("id", existing!.id).eq("status", "pending_approval").select(columns).maybeSingle();
+  if (error?.code === "23505") return c.json({ error: "Receipt was recorded concurrently or its transaction ID is already used; look it up before retrying" }, 409);
+  if (error) return c.json({ error: "Could not record Qatom receipt" }, 500);
+  if (!data) return c.json({ error: "Receipt changed while it was being recorded; look it up before retrying" }, 409);
+  await recordAudit(null, `qatom_purchase_${input.status}`, "qatom_receipt", data.id, { bountyId: input.bountyId, agentId: input.agentId, amountUsdTdn: input.amountUsdTdn, transactionId: input.transactionId });
+  return c.json({ receipt: data, duplicate: false }, plan === "insert" ? 201 : 200);
 });
 
 app.onError((error, c) => {

@@ -10,6 +10,7 @@ const navigation: Record<DashboardRole, { label: string; href: string }[]> = {
     { label: "Create bounty", href: "/bounties/new" },
     { label: "Submissions", href: "/dashboard/requester#submissions" },
     { label: "Payments", href: "/dashboard/requester#payments" },
+    { label: "Agent spending", href: "/dashboard/requester#agent-spending" },
     { label: "Settings", href: "/dashboard/requester#settings" },
   ],
   earner: [
@@ -19,6 +20,7 @@ const navigation: Record<DashboardRole, { label: string; href: string }[]> = {
     { label: "Opportunities", href: "/dashboard/earner#opportunities" },
     { label: "Submissions", href: "/dashboard/earner#submissions" },
     { label: "Earnings", href: "/dashboard/earner#earnings" },
+    { label: "Tool spending", href: "/dashboard/earner#tool-spending" },
     { label: "Settings", href: "/dashboard/earner#settings" },
   ],
 };
@@ -43,7 +45,7 @@ export function DashboardShell({ role, email, children }: { role: DashboardRole;
 }
 
 export function DashboardLoadError({ title, message }: { title: string; message: string }) {
-  return <div className="notice-error mt-6" role="alert"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm">{message}</p><p className="mt-2 text-xs">Check that migrations 0001–0006 are applied and the Supabase project is reachable.</p><a className="mt-3 inline-block text-xs font-semibold underline" href="">Retry</a></div>;
+  return <div className="notice-error mt-6" role="alert"><h2 className="font-semibold">{title}</h2><p className="mt-1 text-sm">{message}</p><p className="mt-2 text-xs">Check that migrations 0001–0009 are applied and the Supabase project is reachable.</p><a className="mt-3 inline-block text-xs font-semibold underline" href="">Retry</a></div>;
 }
 
 export function MetricCard({ label, value, detail }: { label: string; value: string | number; detail?: string }) {
@@ -52,8 +54,8 @@ export function MetricCard({ label, value, detail }: { label: string; value: str
 
 export function StatusPill({ value }: { value: string }) {
   const normalized = value.toLowerCase();
-  const kind = ["active", "confirmed", "available", "accepted", "settled"].includes(normalized) ? "success"
-    : ["funding", "pending", "queued", "sent", "review"].includes(normalized) ? "pending"
-      : ["failed", "refunded", "declined", "expired"].includes(normalized) ? "muted" : "default";
+  const kind = ["active", "confirmed", "available", "accepted", "settled", "completed"].includes(normalized) ? "success"
+    : ["funding", "pending", "queued", "sent", "review", "pending_approval"].includes(normalized) ? "pending"
+      : ["failed", "refunded", "declined", "expired", "rejected"].includes(normalized) ? "muted" : "default";
   return <span className={`status-pill status-${kind}`}>{value.replaceAll("_", " ")}</span>;
 }

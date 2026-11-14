@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DashboardLoadError, DashboardShell, MetricCard, StatusPill } from "@/components/DashboardShell";
+import { QatomReceipts, qatomReceiptColumns, totalUsdTdn, type QatomReceipt } from "@/components/QatomReceipts";
 import { RequesterBounties } from "@/components/RequesterBounties";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,16 +23,18 @@ export default async function RequesterDashboard() {
 
   const rows = bounties || [];
   const bountyIds = rows.map((row) => row.id);
-  const [submissionResult, paymentResult, matchResult] = await Promise.all([
+  const [submissionResult, paymentResult, matchResult, receiptResult] = await Promise.all([
     bountyIds.length ? supabase.from("submissions").select("id,bounty_id,submitted_at").in("bounty_id", bountyIds).order("submitted_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     bountyIds.length ? supabase.from("payments").select("id,bounty_id,kind,status,amount_base_units,tx_hash,explorer_url,created_at").in("bounty_id", bountyIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     bountyIds.length ? supabase.from("bounty_matches").select("id,bounty_id,notification_status").in("bounty_id", bountyIds) : Promise.resolve({ data: [], error: null }),
+    bountyIds.length ? supabase.from("qatom_receipts").select(qatomReceiptColumns).in("bounty_id", bountyIds).order("occurred_at", { ascending: false }).limit(20) : Promise.resolve({ data: [], error: null }),
   ]);
-  const loadIssue = submissionResult.error || paymentResult.error || matchResult.error;
+  const loadIssue = submissionResult.error || paymentResult.error || matchResult.error || receiptResult.error;
   if (loadIssue) return <DashboardShell role="requester" email={user.email || "Account"}><DashboardLoadError title="Some dashboard records could not be loaded" message={loadIssue.message} /></DashboardShell>;
   const submissions = submissionResult.data || [];
   const payments = paymentResult.data || [];
   const matches = matchResult.data || [];
+  const receipts = (receiptResult.data || []) as QatomReceipt[];
   const submissionCounts: Record<string, number> = {};
   for (const item of submissions) submissionCounts[item.bounty_id] = (submissionCounts[item.bounty_id] || 0) + 1;
   const matchCounts: Record<string, number> = {};
@@ -60,6 +63,11 @@ export default async function RequesterDashboard() {
         {payments.length ? <div className="space-y-2">{payments.slice(0, 6).map((payment) => <article className="activity-row" key={payment.id}><span><strong className="capitalize">{payment.kind}</strong><small>{number(payment.amount_base_units)} base units · {new Date(payment.created_at).toLocaleDateString()}</small>{payment.tx_hash && <small className="font-mono">{payment.tx_hash.slice(0, 10)}…{payment.tx_hash.slice(-6)}</small>}</span><span className="flex items-center gap-2"><StatusPill value={payment.status} />{payment.explorer_url && <a className="text-xs underline" href={payment.explorer_url} target="_blank" rel="noreferrer">Receipt</a>}</span></article>)}</div> : <div className="empty-state compact"><h3>No payment activity</h3><p>Funding and settlement records appear after transactions are confirmed.</p></div>}
       </section>
     </div>
+
+    <section className="dashboard-section" id="agent-spending"><div className="section-heading"><div><p className="eyebrow">QATOM</p><h2>Agent tool spending</h2></div><span className="text-sm text-neutral-500">{totalUsdTdn(receipts)} USD-TDN spent</span></div>
+      <p className="mb-3 text-sm text-neutral-600">Tools and data agents bought from their own wallets while working on your bounties. This spending is separate from your escrowed budget.</p>
+      <QatomReceipts receipts={receipts} bountyTitles={new Map(rows.map((row) => [row.id, row.title]))} agentNames={new Map()} />
+    </section>
 
     <section className="dashboard-section"><div className="section-heading"><div><p className="eyebrow">LATEST CHANGES</p><h2>Recent activity</h2></div></div>
       {activity.length ? <div className="space-y-2">{activity.map((item) => <Link className="activity-row" href={item.href} key={item.id}><span><strong>{item.title}</strong><small>{new Date(item.date).toLocaleString()}</small></span><StatusPill value={item.status} /></Link>)}</div> : <div className="empty-state compact"><h3>Your activity will show here</h3><p>Create a bounty to get started.</p></div>}

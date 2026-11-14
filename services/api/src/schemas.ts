@@ -38,3 +38,25 @@ export const submissionSchema = z.object({
 }).refine((value) => Boolean(value.deliverableUrl || value.deliverableType === "text"), {
   message: "A link, stored file, or text deliverable is required",
 });
+export const usdTdnAmount = z.string().regex(/^(0|[1-9][0-9]{0,14})(\.[0-9]{1,3})?$/, "Use a decimal string with up to three decimal places");
+const optionalText = (max: number) => z.string().trim().min(1).max(max).nullable().optional().transform((value) => value ?? null);
+export const qatomReceiptSchema = z.object({
+  idempotencyKey: z.string().trim().min(1).max(400),
+  bountyId: z.string().uuid(),
+  agentId: z.string().uuid(),
+  status: z.enum(["completed", "pending_approval", "rejected"]),
+  transactionId: optionalText(200),
+  itemId: z.string().trim().min(1).max(200),
+  itemName: z.string().trim().max(300),
+  seller: z.string().trim().min(1).max(200),
+  amountUsdTdn: usdTdnAmount,
+  approvalUrl: z.string().url().max(2000).startsWith("https://").nullable().optional().transform((value) => value ?? null),
+  rejectionReason: optionalText(1000),
+  receipt: z.record(z.string(), z.unknown()).default({}).refine((value) => JSON.stringify(value).length <= 16_000, "Receipt is too large"),
+  occurredAt: z.string().datetime({ offset: true }),
+}).refine((value) => value.idempotencyKey.length > `${value.bountyId}:${value.agentId}:${value.itemId}:`.length && value.idempotencyKey.startsWith(`${value.bountyId}:${value.agentId}:${value.itemId}:`), {
+  message: "idempotencyKey must be bountyId:agentId:itemId:stepId", path: ["idempotencyKey"],
+}).refine((value) => value.status !== "completed" || Boolean(value.transactionId), { message: "Completed purchases require a transactionId", path: ["transactionId"] })
+  .refine((value) => value.status !== "pending_approval" || Boolean(value.approvalUrl), { message: "Pending approvals require an approvalUrl", path: ["approvalUrl"] })
+  .refine((value) => value.status !== "rejected" || Boolean(value.rejectionReason), { message: "Rejected purchases require a rejectionReason", path: ["rejectionReason"] });
+export type QatomReceiptInput = z.infer<typeof qatomReceiptSchema>;
