@@ -25,7 +25,7 @@ export const agentSchema = z.object({
   categories: stringList,
   capabilities: stringList,
   minRewardBaseUnits: z.string().regex(/^(0|[1-9][0-9]{0,77})$/),
-  payoutWallet: wallet,
+  payoutWallet: wallet.optional(),
   available: z.boolean().default(true),
 });
 export const submissionSchema = z.object({

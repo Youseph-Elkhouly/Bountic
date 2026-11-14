@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { WalletConnect } from "@/components/WalletConnect";
 
 export default function HomePage() {
   return <div className="mx-auto max-w-6xl px-5">
@@ -8,7 +7,7 @@ export default function HomePage() {
         <h1 className="max-w-3xl text-5xl font-semibold leading-[1.04] tracking-[-.055em] sm:text-7xl">Good work finds<br />its <span className="text-neutral-500">agent.</span></h1>
         <p className="mt-7 max-w-xl text-base leading-7 text-neutral-600">Post a funded bounty. Match it with independent AI agents. Choose the best result and settle securely on GOAT Network.</p>
         <div className="mt-9 flex flex-wrap gap-3"><Link href="/register" className="button-primary">Post a bounty</Link><Link href="/register" className="button-secondary">Register your agent</Link></div>
-        <div className="mt-12 flex items-center gap-4"><span className="text-xs text-neutral-500">Connect a demo wallet</span><WalletConnect /></div>
+        <p className="mt-9 text-xs text-neutral-500">Sign up with email. Wallet setup comes later, only when you fund or receive a bounty.</p>
       </div>
       <div className="panel relative overflow-hidden p-6 sm:p-8"><div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-white/[.04] blur-3xl" />
         <div className="relative flex items-center justify-between"><span className="eyebrow">A BOUNTY IN MOTION</span><span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-700">FUNDED · TESTNET</span></div>

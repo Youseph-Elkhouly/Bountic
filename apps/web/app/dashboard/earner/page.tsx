@@ -36,7 +36,7 @@ export default async function EarnerDashboard() {
   const submissions = submissionResult.data || [];
   const bountyIds = [...new Set([...matches.map((item) => item.bounty_id), ...submissions.map((item) => item.bounty_id)])];
   const [bountyResult, paymentResult] = await Promise.all([
-    bountyIds.length ? supabase.from("bounties").select("id,title,description,category,required_skills,deliverable_requirements,max_budget_base_units,asset_symbol,deadline,status").in("id", bountyIds) : Promise.resolve({ data: [], error: null }),
+    bountyIds.length ? supabase.from("bounties").select("id,title,description,category,required_skills,deliverable_requirements,max_budget_base_units,asset_symbol,display_fiat_amount,display_fiat_currency,deadline,status").in("id", bountyIds) : Promise.resolve({ data: [], error: null }),
     bountyIds.length ? supabase.from("payments").select("id,bounty_id,kind,status,amount_base_units,tx_hash,explorer_url,created_at,submission_id").in("bounty_id", bountyIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
   ]);
   const laterIssue = bountyResult.error || paymentResult.error;
@@ -68,8 +68,8 @@ export default async function EarnerDashboard() {
     <section className="dashboard-section" id="agents"><div className="section-heading"><div><p className="eyebrow">YOUR AGENT ROSTER</p><h2>My agents</h2></div><Link href="/agents/new" className="button-secondary">Add agent</Link></div>
       {agentRows.length ? <div className="space-y-3">{agentRows.map((agent) => <article className="list-card block" key={agent.id}>
         <div className="flex flex-wrap items-start justify-between gap-4"><div><h3 className="font-semibold">{agent.name}</h3><p className="mt-1 max-w-2xl text-sm text-neutral-600">{agent.description || "No description added."}</p><p className="mt-2 text-xs text-neutral-500">{agent.skills?.join(" · ") || "No skills listed"}</p></div><StatusPill value={agent.available ? "available" : "paused"} /></div>
-        <p className="mt-3 text-xs text-neutral-500">Payout wallet <span className="font-mono">{agent.payout_wallet.slice(0, 8)}…{agent.payout_wallet.slice(-5)}</span> · {agent.wallet_verified_at ? "verified" : "verification required"}</p>
-        <AgentActions id={agent.id} available={agent.available} verified={Boolean(agent.wallet_verified_at)} />
+        <p className="mt-3 text-xs text-neutral-500">Payout address <span className="font-mono">{agent.payout_wallet ? `${agent.payout_wallet.slice(0, 8)}…${agent.payout_wallet.slice(-5)}` : "not added"}</span> · {agent.wallet_verified_at ? "verified" : agent.payout_wallet ? "verification required" : "add later to receive payouts"}</p>
+        <AgentActions id={agent.id} available={agent.available} verified={Boolean(agent.wallet_verified_at)} hasWallet={Boolean(agent.payout_wallet)} />
         <AgentProfileEditor agent={agent} />
       </article>)}</div> : <div className="empty-state"><h3>Your agents start here</h3><p>Register an agent that runs on your own computer or server. Bountiq stores its profile, not its private keys.</p><Link href="/agents/new" className="button-primary mt-4">Register your first agent</Link></div>}
     </section>
@@ -77,7 +77,7 @@ export default async function EarnerDashboard() {
     <section className="dashboard-section" id="opportunities"><div className="section-heading"><div><p className="eyebrow">FUNDED WORK</p><h2>Bounty opportunities</h2></div></div>
       {opportunities.length ? <div className="space-y-3">{opportunities.map(({ match, bounty, agent }) => bounty && agent && <article className="list-card block" key={match.id}>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><Link className="font-semibold hover:underline" href={`/bounties/${bounty.id}`}>{bounty.title}</Link><p className="mt-1 text-sm text-neutral-600">{bounty.category} · {agent.name}</p></div><div className="flex items-center gap-2">{match.score !== null && <span className="text-xs text-neutral-500">{Math.round(Number(match.score) * 100)}% match</span>}<StatusPill value={match.notification_status} /></div></div>
-        <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">{bounty.description}</p><p className="mt-2 text-xs text-neutral-500">Up to {amount(bounty.max_budget_base_units)} {bounty.asset_symbol} base units · due {new Date(bounty.deadline).toLocaleDateString()} · {bounty.required_skills?.join(", ") || "Skills not specified"}</p>
+        <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">{bounty.description}</p><p className="mt-2 text-xs text-neutral-500">{bounty.display_fiat_amount ? `$${bounty.display_fiat_amount} ${bounty.display_fiat_currency} displayed budget · ` : ""}Escrow: {amount(bounty.max_budget_base_units)} {bounty.asset_symbol} base units · due {new Date(bounty.deadline).toLocaleDateString()} · {bounty.required_skills?.join(", ") || "Skills not specified"}</p>
         {match.notification_status === "sent" && <AgentResponse bountyId={bounty.id} agentId={agent.id} />}
         {match.notification_status === "accepted" && <AgentSubmissionForm bountyId={bounty.id} agentId={agent.id} />}
       </article>)}</div> : <div className="empty-state"><h3>No matched opportunities yet</h3><p>Only funded bounties returned by the matching service appear here. Keep an agent available and connect Telegram to receive invitations.</p></div>}

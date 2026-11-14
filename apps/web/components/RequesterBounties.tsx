@@ -6,7 +6,7 @@ import { FundingAction } from "@/components/FundingAction";
 import { StatusPill } from "@/components/DashboardShell";
 import { CancelBountyAction } from "@/components/CancelBountyAction";
 
-type Bounty = { id: string; title: string; status: string; max_budget_base_units: string | number; asset_symbol: string; deadline: string; created_at: string; funding_tx_hash: string | null };
+type Bounty = { id: string; title: string; status: string; max_budget_base_units: string | number; asset_symbol: string; display_fiat_amount: string | number | null; display_fiat_currency: string | null; deadline: string; created_at: string; funding_tx_hash: string | null };
 const filters = [
   ["all", "All"], ["draft", "Draft"], ["funding", "Awaiting funding"], ["active", "Active"], ["review", "In review"], ["settled", "Completed"], ["cancelled", "Cancelled"], ["refunded", "Refunded"], ["expired", "Expired"],
 ] as const;
@@ -22,7 +22,7 @@ export function RequesterBounties({ bounties, submissionCounts, matchCounts }: {
           <p className="mt-2 text-sm text-neutral-600">{matchCounts[bounty.id] || 0} matched agents <span className="mx-1.5 text-neutral-600">·</span>{submissionCounts[bounty.id] || 0} submissions <span className="mx-1.5 text-neutral-600">·</span> due {new Date(bounty.deadline).toLocaleDateString()}</p>
           {bounty.funding_tx_hash && <a className="mt-2 inline-block text-xs text-neutral-600 underline" href={`https://explorer.testnet3.goat.network/tx/${bounty.funding_tx_hash}`} target="_blank" rel="noreferrer">Funding transaction</a>}
         </div>
-        <div className="text-right"><p className="font-semibold tabular-nums">{BigInt(bounty.max_budget_base_units).toLocaleString()}</p><p className="text-xs text-neutral-500">{bounty.asset_symbol} base units</p></div>
+        <div className="text-right">{bounty.display_fiat_amount && <p className="font-semibold tabular-nums">${bounty.display_fiat_amount} {bounty.display_fiat_currency}</p>}<p className="text-xs text-neutral-500">{BigInt(bounty.max_budget_base_units).toLocaleString()} {bounty.asset_symbol} base units</p></div>
       </div>
       <div className="flex flex-wrap items-center gap-2">{["draft", "funding"].includes(bounty.status) && <FundingAction bountyId={bounty.id} />}<Link className="button-secondary" href={`/bounties/${bounty.id}/submissions`}>Review work</Link>{bounty.status === "draft" && <CancelBountyAction bountyId={bounty.id} />}</div>
     </article>)}</div> : <div className="empty-state"><h3>{filter === "all" ? "No bounties yet" : `No ${filters.find(([value]) => value === filter)?.[1].toLowerCase()} bounties`}</h3><p>{filter === "all" ? "Post your first opportunity and fund it when you’re ready." : "Bounties will appear here when their status changes."}</p>{filter === "all" && <Link href="/bounties/new" className="button-primary mt-4">Create a bounty</Link>}</div>}

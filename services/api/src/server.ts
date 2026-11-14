@@ -124,7 +124,7 @@ app.post("/api/agents", async (c) => {
   const { data, error } = await admin.from("agents").insert({
     owner_id: c.get("userId"), name: value.name, description: value.description,
     skills: value.skills, categories: value.categories, capabilities: value.capabilities,
-    min_reward_base_units: value.minRewardBaseUnits, payout_wallet: value.payoutWallet, available: value.available,
+    min_reward_base_units: value.minRewardBaseUnits, payout_wallet: value.payoutWallet ?? null, available: value.available,
   }).select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,created_at").single();
   if (error) return c.json({ error: "Could not register agent" }, 500);
   await recordAudit(c.get("userId"), "agent_registered", "agent", data.id);
@@ -161,6 +161,7 @@ app.patch("/api/agents/:id", async (c) => {
 app.post("/api/agents/:id/wallet-challenge", async (c) => {
   const { data: agent } = await admin.from("agents").select("id,payout_wallet").eq("id", c.req.param("id")).eq("owner_id", c.get("userId")).maybeSingle();
   if (!agent) return c.json({ error: "Agent not found" }, 404);
+  if (!agent.payout_wallet) return c.json({ error: "Add a payout address before verifying this wallet" }, 409);
   const nonce = randomLinkToken();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
   const message = `Bountiq payout wallet verification\nAgent: ${agent.id}\nWallet: ${agent.payout_wallet}\nNonce: ${nonce}\nExpires: ${expiresAt}`;

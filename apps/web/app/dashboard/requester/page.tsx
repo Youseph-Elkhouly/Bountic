@@ -16,7 +16,7 @@ export default async function RequesterDashboard() {
   if (profile.role !== "requester") redirect("/dashboard/earner");
 
   const { data: bounties, error } = await supabase.from("bounties")
-    .select("id,title,status,max_budget_base_units,asset_symbol,deadline,created_at,funding_tx_hash")
+    .select("id,title,status,max_budget_base_units,asset_symbol,display_fiat_amount,display_fiat_currency,deadline,created_at,funding_tx_hash")
     .eq("requester_id", user.id).order("created_at", { ascending: false });
   if (error) return <DashboardShell role="requester" email={user.email || "Account"}><DashboardLoadError title="Could not load your bounties" message={error.message} /></DashboardShell>;
 

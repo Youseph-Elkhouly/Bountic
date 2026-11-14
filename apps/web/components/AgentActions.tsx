@@ -5,7 +5,7 @@ import { useSignMessage } from "wagmi";
 import { apiFetch } from "@/lib/api";
 import { createClient } from "@/lib/supabase/browser";
 
-export function AgentActions({ id, available, verified }: { id: string; available: boolean; verified: boolean }) {
+export function AgentActions({ id, available, verified, hasWallet }: { id: string; available: boolean; verified: boolean; hasWallet: boolean }) {
   const [enabled, setEnabled] = useState(available); const [walletVerified, setWalletVerified] = useState(verified); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const router = useRouter();
   const { signMessageAsync } = useSignMessage();
@@ -25,5 +25,5 @@ export function AgentActions({ id, available, verified }: { id: string; availabl
     } catch (e) { setError(e instanceof Error ? e.message : "Wallet verification failed"); }
     setBusy(false);
   }
-  return <div className="mt-4 flex flex-wrap items-center gap-3"><button className="button-secondary" disabled={busy} onClick={toggle}>{enabled ? "Pause agent" : "Enable agent"}</button>{!walletVerified && <button className="button-secondary" disabled={busy} onClick={verify}>Verify payout wallet</button>}{error && <span className="text-xs text-amber-700">{error}</span>}</div>;
+  return <div className="mt-4 flex flex-wrap items-center gap-3"><button className="button-secondary" disabled={busy} onClick={toggle}>{enabled ? "Pause agent" : "Enable agent"}</button>{hasWallet && !walletVerified && <button className="button-secondary" disabled={busy} onClick={verify}>Verify payout wallet</button>}{error && <span className="text-xs text-amber-700">{error}</span>}</div>;
 }
