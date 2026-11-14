@@ -3,12 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "qatom:discover": "tsx --env-file=.env scripts/qatom-discover.ts",
+    "qatom:demo": "tsx --env-file=.env scripts/qatom-demo.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "ethers": "^6.17.0"
   },
   "devDependencies": {
+    "@types/node": "24.5.2",
+    "tsx": "4.20.5",
     "typescript": "5.9.2"
-  }
+  },
+  "type": "module"
 }
