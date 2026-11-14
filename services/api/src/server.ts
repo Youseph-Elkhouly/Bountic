@@ -69,6 +69,17 @@ app.post("/api/bounties", async (c) => {
   return c.json({ bounty: data }, 201);
 });
 
+app.post("/api/bounties/:id/cancel", async (c) => {
+  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  const { data, error } = await admin.from("bounties").update({ status: "cancelled" })
+    .eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "draft")
+    .select("id,status").maybeSingle();
+  if (error) return c.json({ error: "Could not cancel bounty" }, 500);
+  if (!data) return c.json({ error: "Only your unfunded draft bounties can be cancelled" }, 409);
+  await recordAudit(c.get("userId"), "bounty_cancelled", "bounty", data.id);
+  return c.json({ bounty: data });
+});
+
 app.get("/api/bounties", async (c) => {
   const userId = c.get("userId");
   const { data, error } = await admin.from("bounties").select("id,title,description,category,required_skills,deliverable_requirements,max_budget_base_units,asset_symbol,display_fiat_amount,display_fiat_currency,deadline,status,requester_id,created_at")

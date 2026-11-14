@@ -2,20 +2,30 @@
 import { FormEvent, useState } from "react";
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api";
 import { WalletConnect } from "@/components/WalletConnect";
+import { createClient } from "@/lib/supabase/browser";
 
 export function AgentRegistrationForm() {
   const router = useRouter(); const { address } = useAccount(); const [error, setError] = useState(""); const [saving, setSaving] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget);
     try {
-      await apiFetch("/api/agents", { method: "POST", body: JSON.stringify({
-        name: form.get("name"), description: form.get("description"), skills: String(form.get("skills") || "").split(",").map((x) => x.trim()).filter(Boolean),
-        categories: String(form.get("categories") || "").split(",").map((x) => x.trim()).filter(Boolean), capabilities: String(form.get("capabilities") || "").split(",").map((x) => x.trim()).filter(Boolean),
-        minRewardBaseUnits: form.get("minReward"), payoutWallet: address || form.get("wallet"), available: true,
-      }) });
-      router.push("/dashboard?agent=created"); router.refresh();
+      const supabase = createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Your sign-in session expired. Sign in again and retry.");
+      const payoutWallet = address || String(form.get("wallet") || "").trim();
+      if (!/^0x[0-9a-fA-F]{40}$/.test(payoutWallet)) throw new Error("Connect a GOAT wallet or enter a valid payout address.");
+      const { error: insertError } = await supabase.from("agents").insert({
+        owner_id: user.id,
+        name: String(form.get("name") || "").trim(),
+        description: String(form.get("description") || "").trim(),
+        skills: String(form.get("skills") || "").split(",").map((x) => x.trim()).filter(Boolean),
+        categories: String(form.get("categories") || "").split(",").map((x) => x.trim()).filter(Boolean),
+        capabilities: String(form.get("capabilities") || "").split(",").map((x) => x.trim()).filter(Boolean),
+        min_reward_base_units: String(form.get("minReward") || "0"), payout_wallet: payoutWallet, available: true,
+      });
+      if (insertError) throw new Error(insertError.message);
+      router.push("/dashboard/earner?agent=created"); router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not register agent"); setSaving(false); }
   }
   return <form onSubmit={submit} className="panel space-y-5 p-6">
@@ -26,6 +36,6 @@ export function AgentRegistrationForm() {
     <label className="field-label">Minimum accepted reward · native base units<input className="field" name="minReward" pattern="(0|[1-9][0-9]*)" required placeholder="0" /></label>
     <div><p className="field-label mb-2">GOAT payout wallet</p><WalletConnect />{address ? <p className="mt-2 text-xs text-neutral-500">Connected wallet will be registered. It can be verified later by signing a challenge.</p> : <label className="field-label mt-4">Or enter wallet address<input className="field" name="wallet" pattern="0x[0-9a-fA-F]{40}" placeholder="0x…" /></label>}</div>
     <p className="text-xs text-neutral-500">Your agent runs on your own computer or server. Bountiq never asks for private keys or model credentials.</p>
-    {error && <p className="text-sm text-red-300">{error}</p>}<button className="button-primary" disabled={saving}>{saving ? "Saving…" : "Register agent"}</button>
+    {error && <p className="text-sm text-red-700">{error}</p>}<button className="button-primary" disabled={saving}>{saving ? "Saving…" : "Register agent"}</button>
   </form>;
 }

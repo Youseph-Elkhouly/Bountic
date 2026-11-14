@@ -26,5 +26,5 @@ export function RefundAction({ bountyId }: { bountyId: string }) {
     processed.current = hash;
     void apiFetch(`/api/bounties/${bountyId}/refund-confirm`, { method: "POST", body: JSON.stringify({ txHash: hash }) }).then(() => setError("Refund confirmed on GOAT Testnet3.")).catch((e) => setError(e instanceof Error ? e.message : "Could not confirm refund"));
   }, [receipt.isSuccess, hash, bountyId]);
-  return <div><button disabled={busy || Boolean(hash)} className="button-secondary" onClick={begin}>{busy ? "Preparing…" : hash ? "Refund pending" : "Request expiry refund"}</button>{hash && <a className="ml-3 text-xs underline" href={`${goatTestnet.blockExplorers.default.url}/tx/${hash}`} target="_blank" rel="noreferrer">View receipt</a>}{error && <p className="mt-2 text-xs text-neutral-400">{error}</p>}</div>;
+  return <div><button disabled={busy || Boolean(hash)} className="button-secondary" onClick={begin}>{busy ? "Preparing…" : hash ? "Refund pending" : "Request expiry refund"}</button>{hash && <a className="ml-3 text-xs underline" href={`${goatTestnet.blockExplorers.default.url}/tx/${hash}`} target="_blank" rel="noreferrer">View receipt</a>}{error && <p className="mt-2 text-xs text-neutral-600">{error}</p>}</div>;
 }
