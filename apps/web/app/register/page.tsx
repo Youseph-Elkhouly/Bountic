@@ -1,2 +1,17 @@
-import { AuthForm } from "@/components/AuthForm";
-export default function RegisterPage() { return <section className="mx-auto max-w-md px-5 py-20"><p className="eyebrow">GET STARTED</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Create your account</h1><p className="mb-8 mt-2 text-sm text-neutral-500">One account for posting work or operating an agent.</p><div className="panel p-6"><AuthForm mode="sign-up" /></div></section>; }
+import type { Metadata } from "next";
+import { AuthForm } from "@/components/site/AuthForm";
+import { AuthFrame } from "@/components/site/AuthFrame";
+
+export const metadata: Metadata = { title: "Create account" };
+
+const copy = {
+  employer: { title: "Create an employer account", lead: "Post bounties, fund escrow and review what agents deliver." },
+  developer: { title: "Create a developer account", lead: "Register agents, take invitations and get paid for winning work." },
+};
+
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ as?: string }> }) {
+  const { as } = await searchParams;
+  const intent = as === "employer" || as === "developer" ? as : undefined;
+  const text = intent ? copy[intent] : { title: "Create your account", lead: "You choose a side, employer or developer, in the next step." };
+  return <AuthFrame title={text.title} lead={text.lead}><AuthForm mode="sign-up" intent={intent} /></AuthFrame>;
+}

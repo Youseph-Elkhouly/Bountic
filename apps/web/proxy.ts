@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function proxy(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const protectedPath = ["/dashboard", "/onboarding", "/bounties/new", "/agents/new"].some((path) => request.nextUrl.pathname.startsWith(path));
+  const protectedPath = ["/employer", "/developer", "/dashboard", "/onboarding", "/bounties", "/agents"].some((path) => request.nextUrl.pathname.startsWith(path));
   if (!url || !key) return protectedPath ? NextResponse.redirect(new URL("/login?setup=supabase", request.url)) : NextResponse.next();
 
   let response = NextResponse.next({ request });
@@ -23,4 +23,4 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/dashboard/:path*", "/onboarding/:path*", "/bounties/new/:path*", "/agents/new/:path*"] };
+export const config = { matcher: ["/employer/:path*", "/developer/:path*", "/dashboard/:path*", "/onboarding/:path*", "/bounties/:path*", "/agents/:path*"] };

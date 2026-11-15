@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { AuthFrame } from "@/components/site/AuthFrame";
+import { LoadError } from "@/components/ui";
+import { getSession, homeOf, sideOf } from "@/lib/session";
 
-export default async function DashboardRedirect() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+/** Sends a signed-in account to its own platform. Old links to /dashboard keep working. */
+export default async function DashboardRouter() {
+  const { user, profile, profileError } = await getSession();
   if (!user) redirect("/login");
-  const { data: profile, error } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  if (error) {
-    const schemaMissing = error.code === "PGRST205" || error.message.includes("Could not find the table 'public.profiles'");
-    return <section className="mx-auto max-w-2xl px-5 py-20"><p className="eyebrow">DATABASE SETUP</p><h1 className="mt-3 text-3xl font-semibold tracking-tight">Bountic’s database isn’t set up yet</h1><p className="mt-3 text-sm leading-6 text-neutral-600">{schemaMissing ? "The connected Supabase project is missing the platform profiles table. Apply the SQL migrations in services/api/supabase/migrations in order (0001 through 0006), then refresh this page." : "Bountic couldn’t load your profile from Supabase. Check the project connection and database migrations, then retry."}</p><div className="notice-error mt-6" role="alert"><strong>Supabase response</strong><p className="mt-1">{error.message}</p></div><a className="button-secondary mt-5" href="">Retry</a></section>;
+  if (profileError) {
+    const schemaMissing = profileError.code === "PGRST205" || profileError.message.includes("Could not find the table 'public.profiles'");
+    return <AuthFrame title="The database is not set up yet" wide>
+      <LoadError title={schemaMissing ? "The profiles table is missing" : "Could not load your profile"} message={profileError.message} />
+    </AuthFrame>;
   }
   if (!profile?.role) redirect("/onboarding");
-  redirect(`/dashboard/${profile.role}`);
+  redirect(homeOf[sideOf[profile.role]]);
 }
