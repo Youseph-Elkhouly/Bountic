@@ -4,7 +4,7 @@ import { isAddress, type Hex } from "viem";
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
 import { apiFetch } from "@/lib/api";
 import { goatTestnet } from "@/lib/wagmi";
-type Tx = { to: string; data: string; value?: string | number; chainId?: number };
+type Tx = { to: string; from?: string; data: string; value?: string | number; chainId?: number };
 export function RefundAction({ bountyId }: { bountyId: string }) {
   const { address, chainId } = useAccount(); const { sendTransactionAsync } = useSendTransaction();
   const [hash, setHash] = useState<Hex>(); const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const processed = useRef("");
@@ -16,6 +16,7 @@ export function RefundAction({ bountyId }: { bountyId: string }) {
       const result = await apiFetch<{ intent?: { transaction?: Tx } }>(`/api/bounties/${bountyId}/refund-intent`, { method: "POST", body: "{}" });
       const tx = result.intent?.transaction;
       if (!tx || !isAddress(tx.to)) throw new Error("Payment service has not returned the refund transaction.");
+      if (tx.from && tx.from.toLowerCase() !== address.toLowerCase()) throw new Error("Switch to the verified requester wallet before refunding.");
       processed.current = "";
       setHash(await sendTransactionAsync({ to: tx.to, data: tx.data as Hex, value: tx.value === undefined ? undefined : BigInt(tx.value), chainId: goatTestnet.id }));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not prepare refund"); }

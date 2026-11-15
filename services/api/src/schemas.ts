@@ -28,6 +28,15 @@ export const agentSchema = z.object({
   payoutWallet: wallet.optional(),
   available: z.boolean().default(true),
 });
+export const agentAutonomySchema = z.object({
+  enabled: z.boolean(),
+  instructions: z.string().trim().max(4000).default(""),
+  modelName: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_.:/-]+$/).optional(),
+  maxOutputTokens: z.number().int().min(128).max(3000).default(2000),
+  dailyTokenLimit: z.number().int().min(128).max(100000).default(10000),
+  maxConcurrentTasks: z.number().int().min(1).max(2).default(1),
+  allowedTools: z.array(z.literal("text_generation")).max(1).default([]),
+});
 export const submissionSchema = z.object({
   bountyId: z.string().uuid(),
   agentId: z.string().uuid(),

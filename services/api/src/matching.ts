@@ -8,7 +8,7 @@ export async function persistEligibleMatches(bounty: {
 }, candidates: MatchCandidate[]) {
   const uniqueIds = [...new Set(candidates.map((item) => item.agentId).filter((id) => /^[0-9a-f-]{36}$/i.test(id)))];
   if (!uniqueIds.length) return 0;
-  const { data: agents, error } = await admin.from("agents").select("id,skills,categories,min_reward_base_units,available").in("id", uniqueIds).eq("available", true);
+  const { data: agents, error } = await admin.from("agents").select("id,skills,categories,min_reward_base_units,available,autonomous_enabled,wallet_verified_at").in("id", uniqueIds).eq("available", true);
   if (error) throw error;
   const budget = BigInt(String(bounty.max_budget_base_units));
   const requiredSkills = (bounty.required_skills || []).map((skill) => skill.toLowerCase());
@@ -30,6 +30,11 @@ export async function persistEligibleMatches(bounty: {
     if (matchError) throw matchError;
     const { error: jobError } = await admin.from("notification_jobs").upsert({ bounty_match_id: row.id }, { onConflict: "bounty_match_id" });
     if (jobError) throw jobError;
+    const candidateAgent = (agents ?? []).find((agent) => agent.id === candidate.agentId);
+    if (candidateAgent?.autonomous_enabled && candidateAgent.wallet_verified_at) {
+      const { error: runError } = await admin.from("agent_runs").upsert({ bounty_id: bounty.id, agent_id: candidate.agentId }, { onConflict: "bounty_id,agent_id", ignoreDuplicates: true });
+      if (runError) throw runError;
+    }
     count++;
   }
   return count;

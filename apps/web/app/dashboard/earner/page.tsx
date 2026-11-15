@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AgentActions } from "@/components/AgentActions";
+import { AgentAutonomySettings } from "@/components/AgentAutonomySettings";
 import { AgentProfileEditor } from "@/components/AgentProfileEditor";
 import { AgentResponse } from "@/components/AgentResponse";
 import { AgentSubmissionForm } from "@/components/AgentSubmissionForm";
@@ -21,22 +22,24 @@ export default async function EarnerDashboard() {
   if (profile.role !== "earner") redirect("/dashboard/requester");
 
   const { data: agents, error: agentError } = await supabase.from("agents")
-    .select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,created_at")
+    .select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,autonomous_enabled,autonomous_instructions,model_name,max_output_tokens,daily_token_limit,max_concurrent_tasks,allowed_tools,created_at")
     .eq("owner_id", user.id).order("created_at", { ascending: false });
   if (agentError) return <DashboardShell role="earner" email={user.email || "Account"}><DashboardLoadError title="Could not load your agents" message={agentError.message} /></DashboardShell>;
 
   const agentRows = agents || [];
   const agentIds = agentRows.map((agent) => agent.id);
-  const [matchResult, submissionResult, receiptResult] = await Promise.all([
+  const [matchResult, submissionResult, receiptResult, runResult] = await Promise.all([
     agentIds.length ? supabase.from("bounty_matches").select("id,bounty_id,agent_id,score,notification_status,created_at").in("agent_id", agentIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     agentIds.length ? supabase.from("submissions").select("id,bounty_id,agent_id,proposed_amount_base_units,deliverable_type,deliverable_url,storage_path,description,winner,submitted_at").in("agent_id", agentIds).order("submitted_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     agentIds.length ? supabase.from("qatom_receipts").select(qatomReceiptColumns).in("agent_id", agentIds).order("occurred_at", { ascending: false }).limit(20) : Promise.resolve({ data: [], error: null }),
+    agentIds.length ? supabase.from("agent_runs").select("id,agent_id,bounty_id,status,attempts,tokens_used,submission_id,result_summary,error_message,logs,created_at,bounties(title)").in("agent_id", agentIds).order("created_at", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
   ]);
-  const loadIssue = matchResult.error || submissionResult.error || receiptResult.error;
+  const loadIssue = matchResult.error || submissionResult.error || receiptResult.error || runResult.error;
   if (loadIssue) return <DashboardShell role="earner" email={user.email || "Account"}><DashboardLoadError title="Could not load agent work" message={loadIssue.message} /></DashboardShell>;
   const matches = matchResult.data || [];
   const submissions = submissionResult.data || [];
   const receipts = (receiptResult.data || []) as QatomReceipt[];
+  const agentRuns = runResult.data || [];
   const bountyIds = [...new Set([...matches.map((item) => item.bounty_id), ...submissions.map((item) => item.bounty_id), ...receipts.map((item) => item.bounty_id)])];
   const [bountyResult, paymentResult] = await Promise.all([
     bountyIds.length ? supabase.from("bounties").select("id,title,description,category,required_skills,deliverable_requirements,max_budget_base_units,asset_symbol,display_fiat_amount,display_fiat_currency,deadline,status").in("id", bountyIds) : Promise.resolve({ data: [], error: null }),
@@ -74,6 +77,7 @@ export default async function EarnerDashboard() {
         <p className="mt-3 text-xs text-neutral-500">Payout address <span className="font-mono">{agent.payout_wallet ? `${agent.payout_wallet.slice(0, 8)}…${agent.payout_wallet.slice(-5)}` : "not added"}</span> · {agent.wallet_verified_at ? "verified" : agent.payout_wallet ? "verification required" : "add later to receive payouts"}</p>
         <AgentActions id={agent.id} available={agent.available} verified={Boolean(agent.wallet_verified_at)} hasWallet={Boolean(agent.payout_wallet)} />
         <AgentProfileEditor agent={agent} />
+        <AgentAutonomySettings agentId={agent.id} settings={{ autonomous_enabled: agent.autonomous_enabled, autonomous_instructions: agent.autonomous_instructions, model_name: agent.model_name, max_output_tokens: agent.max_output_tokens, daily_token_limit: agent.daily_token_limit, max_concurrent_tasks: agent.max_concurrent_tasks, allowed_tools: agent.allowed_tools }} runs={agentRuns.filter((run) => run.agent_id === agent.id)} />
       </article>)}</div> : <div className="empty-state"><h3>Your agents start here</h3><p>Register an agent that runs on your own computer or server. Bountic stores its profile, not its private keys.</p><Link href="/agents/new" className="button-primary mt-4">Register your first agent</Link></div>}
     </section>
 

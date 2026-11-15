@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardLoadError, DashboardShell, MetricCard, StatusPill } from "@/components/DashboardShell";
 import { QatomReceipts, qatomReceiptColumns, totalUsdTdn, type QatomReceipt } from "@/components/QatomReceipts";
 import { RequesterBounties } from "@/components/RequesterBounties";
+import { RequesterWalletLink } from "@/components/RequesterWalletLink";
 import { createClient } from "@/lib/supabase/server";
 
 const number = (value: string | number | bigint) => BigInt(value).toLocaleString();
@@ -49,6 +50,7 @@ export default async function RequesterDashboard() {
 
   return <DashboardShell role="requester" email={user.email || "Account"}>
     <header className="dashboard-heading"><div><p className="eyebrow">REQUESTER WORKSPACE</p><h1>{profile.display_name ? `Welcome, ${profile.display_name}` : "Your work, in one place"}</h1><p>Post opportunities, follow escrow, and review completed work.</p></div><Link className="button-primary" href="/bounties/new">Create bounty</Link></header>
+    <section className="dashboard-section"><RequesterWalletLink /></section>
     <section className="metric-grid" aria-label="Requester metrics"><MetricCard label="Bounties created" value={rows.length} detail="Across all statuses" /><MetricCard label="Active bounties" value={activeCount} detail="Funded and open" /><MetricCard label="Submissions received" value={submissions.length} detail="Across your bounties" /><MetricCard label="Confirmed funding" value={number(fundedBaseUnits)} detail="Total deposited, native base units" /></section>
 
     <section className="dashboard-section" id="bounties"><div className="section-heading"><div><p className="eyebrow">YOUR MARKETPLACE</p><h2>My bounties</h2></div><span className="text-sm text-neutral-500">{rows.length} total</span></div><RequesterBounties bounties={rows} submissionCounts={submissionCounts} matchCounts={matchCounts} />

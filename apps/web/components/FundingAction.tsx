@@ -6,7 +6,7 @@ import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from "wa
 import { apiFetch } from "@/lib/api";
 import { goatTestnet } from "@/lib/wagmi";
 
-type Transaction = { to: string; data: string; value?: string | number; chainId?: number };
+type Transaction = { to: string; from?: string; data: string; value?: string | number; chainId?: number };
 export function FundingAction({ bountyId }: { bountyId: string }) {
   const router = useRouter(); const { address, chainId } = useAccount();
   const { sendTransactionAsync } = useSendTransaction();
@@ -16,6 +16,7 @@ export function FundingAction({ bountyId }: { bountyId: string }) {
 
   async function submitTransaction(tx: Transaction) {
     if (!address || !isAddress(tx.to)) throw new Error("Connect a valid GOAT-compatible wallet first.");
+    if (tx.from && tx.from.toLowerCase() !== address.toLowerCase()) throw new Error("Switch to the verified requester wallet before funding.");
     if (tx.chainId !== undefined && tx.chainId !== goatTestnet.id) throw new Error("Payment service returned a transaction for the wrong chain.");
     const result = await sendTransactionAsync({ to: tx.to, data: tx.data as Hex, value: tx.value === undefined ? undefined : BigInt(tx.value), chainId: goatTestnet.id });
     setHash(result); return result;
@@ -45,6 +46,7 @@ export function FundingAction({ bountyId }: { bountyId: string }) {
         if (phase === "create") {
           const result = await apiFetch<{ onchainBountyId: string; transaction?: Transaction }>(`/api/bounties/${bountyId}/funding-ready`, { method: "POST", body: JSON.stringify({ txHash: hash }) });
           if (!result.transaction) throw new Error("Payment service has not provided the escrow funding transaction yet.");
+          if (result.transaction.from && result.transaction.from.toLowerCase() !== address?.toLowerCase()) throw new Error("Switch to the verified requester wallet before funding.");
           setOnchainBountyId(result.onchainBountyId);
           setPhase("fund"); setHash(undefined);
           const nextHash = await sendTransactionAsync({ to: result.transaction.to as `0x${string}`, data: result.transaction.data as Hex, value: result.transaction.value === undefined ? undefined : BigInt(result.transaction.value), chainId: goatTestnet.id });
@@ -55,7 +57,7 @@ export function FundingAction({ bountyId }: { bountyId: string }) {
         }
       } catch (e) { setError(e instanceof Error ? e.message : "Could not confirm funding"); setPhase("idle"); }
     })();
-  }, [receipt.isSuccess, hash, phase, bountyId, onchainBountyId, router, sendTransactionAsync]);
+  }, [receipt.isSuccess, hash, phase, bountyId, onchainBountyId, router, sendTransactionAsync, address]);
 
   return <div className="space-y-2"><button className="button-secondary" disabled={phase !== "idle"} onClick={begin}>{phase === "idle" ? "Fund escrow" : phase === "create" ? "Confirming bounty…" : phase === "fund" ? "Confirming escrow…" : "Funded"}</button>{receipt.isError && <p className="text-xs text-red-700">Transaction confirmation failed. The bounty remains inactive.</p>}{error && <p className="max-w-xs text-xs text-amber-700">{error}</p>}{hash && <a className="block text-xs text-neutral-500 underline" href={`${goatTestnet.blockExplorers.default.url}/tx/${hash}`} target="_blank" rel="noreferrer">View transaction</a>}</div>;
 }
