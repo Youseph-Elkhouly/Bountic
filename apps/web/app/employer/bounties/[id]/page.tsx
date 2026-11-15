@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CancelDraft } from "@/components/employer/CancelDraft";
+import { DemoActivate } from "@/components/employer/DemoActivate";
 import { FundEscrow } from "@/components/employer/FundEscrow";
 import { RefundEscrow } from "@/components/employer/RefundEscrow";
 import { Amount, Hash, LoadError, Notice, PageHead, Section, Status, Tags } from "@/components/ui";
@@ -48,6 +49,7 @@ export default async function EmployerBountyPage({ params, searchParams }: { par
         <p className="mt-4 text-[13px]">{bounty.funding_tx_hash ? <>Funded in <Hash value={bounty.funding_tx_hash} href={txUrl(bounty.funding_tx_hash)} /></> : bounty.status === "draft" ? "Not funded. Only you can see this bounty." : unfunded ? "Waiting for the funding transaction to confirm." : null}</p>
 
         <div className="mt-6 flex flex-col items-start gap-3">
+          {unfunded && process.env.NEXT_PUBLIC_DEMO_FUNDING === "true" && <DemoActivate bountyId={bounty.id} />}
           {unfunded && <FundEscrow bountyId={bounty.id} primary />}
           {!unfunded && <Link href={`/employer/bounties/${bounty.id}/submissions`} className="btn btn-primary">{submissionCount ? `Review ${submissionCount} submission${submissionCount === 1 ? "" : "s"}` : "View submissions"}</Link>}
           {expired && <RefundEscrow bountyId={bounty.id} />}

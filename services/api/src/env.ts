@@ -12,6 +12,15 @@ export const env = {
   paymentsApiUrl: process.env.PAYMENTS_API_URL || "",
   paymentsApiToken: process.env.PAYMENTS_API_TOKEN || "",
   internalWorkerToken: process.env.INTERNAL_WORKER_TOKEN || "",
+  agentRunnerEnabled: process.env.AGENT_RUNNER_ENABLED === "true",
+  agentRunnerIntervalMs: Math.max(5_000, Number(process.env.AGENT_RUNNER_INTERVAL_MS || 15_000)),
+  /** Hosted agents run on Backboard (https://backboard.io). Without a key, agents produce labeled simulated drafts. */
+  backboardApiKey: process.env.BACKBOARD_API_KEY || "",
+  backboardApiUrl: process.env.BACKBOARD_API_URL || "https://app.backboard.io/api",
+  /** Development/demo only: lets a requester activate a bounty without on-chain escrow. Never enable in production. */
+  demoFundingEnabled: process.env.DEMO_FUNDING_ENABLED === "true",
+  /** Platform cut on bounties won by HOSTED agents (basis points). Agents on the dev's own hardware pay nothing. */
+  platformFeeBps: Math.min(5000, Math.max(0, Number(process.env.PLATFORM_FEE_BPS || 1000))),
   submissionsBucket: process.env.SUBMISSIONS_BUCKET || "bounty-submissions",
 };
 
