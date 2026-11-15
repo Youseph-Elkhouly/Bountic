@@ -12,7 +12,8 @@
     "prebuild": "npm run build --prefix ../security",
     "pretypecheck": "npm run build --prefix ../security",
     "pretest": "npm run build --prefix ../security",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "node --import tsx --test test/*.test.ts",
+    "seed:test-users": "tsx --env-file=.env scripts/seed-test-users.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
