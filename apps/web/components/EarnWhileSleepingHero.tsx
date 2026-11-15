@@ -2,74 +2,163 @@
 
 import { useEffect, useRef, useState } from "react";
 
-function SleepingPerson() {
-  return <g aria-hidden="true">
-    <rect x="42" y="276" width="16" height="88" rx="4" fill="#e6e8eb" stroke="#cfd3d8" />
-    <rect x="54" y="319" width="305" height="38" rx="12" fill="#fff" stroke="#cfd3d8" />
-    <rect x="56" y="355" width="302" height="28" rx="3" fill="#f0f1f2" stroke="#cfd3d8" />
-    <path d="M85 320c0-11 9-19 22-19h40c12 0 22 8 22 19v16H85z" fill="#f5f6f7" stroke="#d5d8dc" />
-    <g className="sleep-breath">
-      <path d="M156 317c10-18 27-21 42-14 12 6 17 18 18 29h-56z" fill="#e7e9ec" stroke="#ccd0d5" />
-      <path d="M158 315c1-14 11-25 24-25 14 0 24 11 24 25 0 10-7 17-17 17h-14c-10 0-17-7-17-17z" fill="#e6e8eb" stroke="#c7cbd0" />
-      <path d="M164 291c4-13 18-17 29-10 5 3 9 8 10 14-7-4-15-5-23-3-7 1-12 4-16 8z" fill="#35383d" />
-      <path d="M194 310q5 4 10 0" fill="none" stroke="#596069" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="186" cy="308" r="1.5" fill="#bd9290" />
+type AgentMood = "idle" | "curious" | "busy" | "approved" | "paid";
+
+function AgentCharacter({ mood }: { mood: AgentMood }) {
+  return <g className={`agent-character agent-${mood}`} aria-hidden="true">
+    <path className="agent-arm agent-arm-left" d="M6 20 1 23" fill="none" stroke="#45494e" strokeWidth="2" strokeLinecap="round" />
+    <path className="agent-arm agent-arm-right" d="m20 20 5 3" fill="none" stroke="#45494e" strokeWidth="2" strokeLinecap="round" />
+    <path d="M6 17q0-2 3-2h8q3 0 3 3v8H6z" fill="#d8d9d4" stroke="#45494e" strokeWidth="1.7" />
+    <path d="M9 17h5l-2.5 4z" fill="#719477" />
+    <path d="M4 9q0-8 8-8t8 8v4q0 5-8 5t-8-5z" fill="#dba988" stroke="#45494e" strokeWidth="1.7" />
+    <path d="M4 9q0-8 8-8 6 0 8 5-4-2-8-1-4 0-8 4z" fill="#39383a" />
+    <g className="agent-eyes" fill="#313438">
+      <circle cx="9" cy="10" r="1" />
+      <circle cx="15" cy="10" r="1" />
     </g>
-    <path className="blanket-breath" d="M207 319c18 1 27 10 47 13 19 3 43 0 60 6 12 4 17 11 18 20H202c1-14-1-30 5-39z" fill="#dfe2e5" stroke="#c8ccd1" />
-    <path d="M214 337c36 8 73 7 105 2" fill="none" stroke="#c3c8cd" strokeWidth="1.5" strokeLinecap="round" />
-    <text x="226" y="283" className="sleep-z" fill="#8b9097" fontSize="11" fontFamily="ui-sans-serif, system-ui">z</text>
-    <text x="240" y="270" className="sleep-z sleep-z-late" fill="#a1a6ad" fontSize="8" fontFamily="ui-sans-serif, system-ui">z</text>
+    <path className="agent-mouth" d="M9 13q3 2 6 0" fill="none" stroke="#754f46" strokeWidth="1.2" strokeLinecap="round" />
+    <path d="M9 26v2m6-2v2" stroke="#45494e" strokeWidth="1.8" strokeLinecap="round" />
   </g>;
 }
 
-function AgentActivity() {
+function SleepingPerson() {
+  return <g aria-hidden="true">
+    {/* Bed frame and layered linens */}
+    <rect x="45" y="206" width="28" height="143" rx="7" fill="#a7907e" stroke="#554e49" strokeWidth="2" />
+    <path d="M67 294h300q12 0 12 12v28H67z" fill="#fff" stroke="#55595d" strokeWidth="2" />
+    <path d="M59 334h325v19H59z" fill="#9a8879" stroke="#554e49" strokeWidth="2" />
+    <path d="M76 352v19m290-19v19" stroke="#554e49" strokeWidth="3" strokeLinecap="round" />
+    <path d="M85 370h280" stroke="#d4d0ca" strokeWidth="2" strokeLinecap="round" />
+
+    {/* Pillow sits behind the sleeper's head */}
+    <path d="M91 281q0-17 17-17h73q16 0 16 17v20H91z" fill="#fdfcf9" stroke="#b9b5ae" strokeWidth="2" />
+    <path d="M101 286q2-12 12-12h58q12 0 14 12" fill="none" stroke="#e0ddd7" strokeWidth="1.5" strokeLinecap="round" />
+
+    {/* Shoulder and pajama sleeve remain visible above the duvet */}
+    <path d="M163 286q15-17 39-14l39 10q13 4 18 17l-92 12z" fill="#aebac6" stroke="#50565d" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M186 290q18 1 30 11l-8 8q-14-2-24-10" fill="#d79e7c" stroke="#745647" strokeWidth="1.7" strokeLinejoin="round" />
+
+    {/* Face in profile, resting on the pillow */}
+    <path d="M122 272q0-27 27-30 28-2 36 21l-4 17q-6 16-26 17-26-1-32-25z" fill="#dda985" stroke="#654d42" strokeWidth="2" />
+    <path d="M121 273q-4-26 18-35 24-10 42 8 5 5 6 13-9-8-19-9-13-2-22 5-10 8-17 21z" fill="#3c3939" stroke="#393638" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M178 272q7 2 12 0" fill="none" stroke="#4e4541" strokeWidth="2" strokeLinecap="round" />
+    <path d="m185 280 6 2-6 2" fill="none" stroke="#9a6b58" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M176 290q5 2 9-1" fill="none" stroke="#8c5d50" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="130" cy="277" r="5" fill="none" stroke="#9b6d5a" strokeWidth="1.5" />
+
+    {/* Duvet follows the shape of the sleeper instead of covering a rectangle */}
+    <g className="blanket-breath">
+      <path d="M196 296q25-10 54-3 28 8 48 8h49q12 0 18 10l7 24H184q-4-16 1-28 3-7 11-11z" fill="#78899b" stroke="#4e5966" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M209 306q29-4 52 4 27 9 58 7" fill="none" stroke="#aeb9c4" strokeWidth="2" strokeLinecap="round" />
+      <path d="M219 318q25 6 47 4" fill="none" stroke="#65778a" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M287 309q26 4 43 2" fill="none" stroke="#aeb9c4" strokeWidth="1.5" strokeLinecap="round" />
+    </g>
+    <text x="105" y="244" className="sleep-z" fill="#858a90" fontSize="11" fontFamily="ui-sans-serif, system-ui">z</text>
+    <text x="116" y="232" className="sleep-z sleep-z-late" fill="#a0a4a8" fontSize="8" fontFamily="ui-sans-serif, system-ui">z</text>
+  </g>;
+}
+
+function NightstandAndLamp() {
+  return <g aria-hidden="true">
+    <ellipse cx="401" cy="370" rx="36" ry="4" fill="#e7e3dd" />
+    <path d="M371 306h61v10h-61z" fill="#c4ad98" stroke="#60564e" strokeWidth="2" />
+    <path d="M377 316v52m49-52v52" stroke="#60564e" strokeWidth="2" />
+    <path d="M376 367h50" stroke="#60564e" strokeWidth="2" />
+    <path d="M387 305h28" stroke="#877768" strokeWidth="2" />
+    <path d="M399 302v-29" stroke="#55595d" strokeWidth="2" />
+    <path d="M385 272q2-18 15-18t15 18z" fill="#e5d4b4" stroke="#685f55" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M394 274h13m-7 0v28" stroke="#55595d" strokeWidth="2" strokeLinecap="round" />
+    <path d="M390 302q10-5 20 0" fill="none" stroke="#55595d" strokeWidth="2" strokeLinecap="round" />
+    <path d="M379 302h18v-5h-18z" fill="#eee8dd" stroke="#84786c" strokeWidth="1.5" />
+  </g>;
+}
+
+function DeskAndLaptop() {
+  return <g aria-hidden="true">
+    {/* A shared floor line grounds the desk and the bed in the same room. */}
+    <ellipse cx="545" cy="371" rx="112" ry="5" fill="#e7e3dd" />
+    <path d="M433 303h226v14H433z" fill="#c7b29d" stroke="#5b554f" strokeWidth="2" />
+    <path d="M447 317v51m197-51v51" stroke="#5b554f" strokeWidth="3" strokeLinecap="round" />
+    <path d="M448 368h197" stroke="#5b554f" strokeWidth="2" strokeLinecap="round" />
+    <path d="M461 302h35" stroke="#ead9c4" strokeWidth="2" strokeLinecap="round" />
+
+    <Laptop />
+  </g>;
+}
+
+function Laptop() {
+  return <g transform="translate(474 190)">
+    <rect x="0" y="0" width="158" height="109" rx="8" fill="#34383d" stroke="#25282c" strokeWidth="2" />
+    <rect x="7" y="7" width="144" height="92" rx="3" fill="#fff" />
+    <rect x="7" y="7" width="144" height="17" rx="3" fill="#f4f3f0" />
+    <path d="M7 24h144" stroke="#dad9d5" strokeWidth="1.5" />
+    <text x="15" y="19" className="screen-brand">bountic.</text>
+    <circle cx="141" cy="15" r="3" fill="#739579" />
+    <LaptopTimeline />
+    <path d="M-8 109h174l12 7H-20z" fill="#d6d7d5" stroke="#55595d" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M62 111h38" stroke="#a9aaa8" strokeWidth="1.5" strokeLinecap="round" />
+  </g>;
+}
+
+function LaptopTimeline() {
   return <g aria-hidden="true">
     <g className="phase-online scene-phase">
-      <circle cx="453" cy="260" r="3" fill="#6f9c78" />
-      <text x="462" y="263" className="screen-small">Agent online</text>
-      <text x="451" y="281" className="screen-muted">Listening for bounties</text>
-      <path d="M451 296h126" stroke="#e7e9eb" />
-      <text x="451" y="311" className="screen-muted">Earned this bounty</text>
-      <text x="593" y="312" className="screen-small screen-strong" textAnchor="end">$0</text>
+      <g transform="translate(14 33)"><AgentCharacter mood="idle" /></g>
+      <text x="42" y="43" className="screen-title">Agent online</text>
+      <text x="42" y="55" className="screen-copy">Ready for a bounty</text>
+      <path d="M14 76h120" stroke="#e4e4e1" strokeWidth="1.5" />
+      <text x="14" y="89" className="screen-copy">Earned this bounty</text>
+      <text x="135" y="89" className="screen-emphasis" textAnchor="end">$0</text>
     </g>
 
     <g className="phase-match scene-phase">
-      <rect x="448" y="252" width="151" height="73" rx="5" fill="#fff" stroke="#d9dde1" />
-      <text x="457" y="265" className="screen-tiny">NEW BOUNTY MATCHED</text>
-      <text x="457" y="280" className="screen-small screen-strong">Landing page dev</text>
-      <text x="457" y="295" className="screen-muted">Maximum reward</text>
-      <text x="570" y="295" className="screen-small screen-strong" textAnchor="end">$75</text>
-      <rect x="457" y="303" width="48" height="14" rx="3" fill="#17191b" />
-      <text x="481" y="313" className="screen-button" textAnchor="middle">Accept</text>
+      <g transform="translate(14 33)"><AgentCharacter mood="curious" /></g>
+      <text x="42" y="40" className="screen-copy screen-strong">New bounty available</text>
+      <text x="42" y="53" className="screen-emphasis">Website bug fix</text>
+      <text x="42" y="66" className="screen-copy">Reward</text>
+      <text x="68" y="66" className="screen-emphasis">$75</text>
+      <rect x="97" y="58" width="37" height="16" rx="4" fill="#303438" />
+      <text x="115.5" y="69" className="screen-button" textAnchor="middle">Accept</text>
     </g>
 
     <g className="phase-working scene-phase">
-      <text x="451" y="263" className="screen-small screen-strong">Accepted → Working</text>
-      <text x="451" y="277" className="screen-muted">Landing page development</text>
-      <rect x="451" y="287" width="111" height="3" rx="1.5" fill="#e6e8eb" />
-      <rect className="work-progress" x="451" y="287" width="72" height="3" rx="1.5" fill="#7b9a81" />
-      <path d="M451 299h15m6 0h30m6 0h-18m-39 9h32m6 0h47" stroke="#c6cbd0" strokeWidth="2" strokeLinecap="round" />
-      <path d="M451 318h22m6 0h46m6 0h-24" stroke="#d9dde1" strokeWidth="2" strokeLinecap="round" />
-      <path className="work-cursor" d="M567 299l11 7-5 1 3 5-2 1-3-5-3 4z" fill="#2d3136" />
+      <g transform="translate(14 33)"><AgentCharacter mood="busy" /></g>
+      <text x="42" y="38" className="screen-copy screen-strong">Accepted · Working</text>
+      <g className="work-step-analyze work-step">
+        <text x="42" y="53" className="screen-emphasis">Analyzing task</text>
+      </g>
+      <g className="work-step-write work-step">
+        <text x="42" y="53" className="screen-emphasis">Writing solution</text>
+      </g>
+      <g className="work-step-submit work-step">
+        <text x="42" y="53" className="screen-emphasis">Submitting work</text>
+      </g>
+      <rect x="42" y="65" width="91" height="4" rx="2" fill="#e4e4e1" />
+      <rect className="work-progress" x="42" y="65" width="2" height="4" rx="2" fill="#75977a" />
+      <path d="M42 80h24m6 0h37m5 0h-16" stroke="#c5c7c6" strokeWidth="2" strokeLinecap="round" />
+      <path className="work-cursor" d="m121 73 9 6-4 1 2 4-2 1-2-4-3 3z" fill="#34383d" />
     </g>
 
     <g className="phase-selected scene-phase">
-      <circle cx="460" cy="270" r="8" fill="#eef4ef" />
-      <path d="m456 270 3 3 5-6" fill="none" stroke="#547d5d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="474" y="269" className="screen-small screen-strong">Selected by</text>
-      <text x="474" y="280" className="screen-small screen-strong">requester</text>
-      <text x="451" y="300" className="screen-muted">Payment is being settled</text>
-      <path d="M451 311h108" stroke="#e7e9eb" />
-      <text x="451" y="322" className="screen-tiny">GOAT NETWORK ESCROW</text>
+      <g transform="translate(14 33)"><AgentCharacter mood="approved" /></g>
+      <circle cx="137" cy="37" r="8" fill="#edf2ed" />
+      <path d="m133 37 3 3 5-6" fill="none" stroke="#5b8062" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="42" y="46" className="screen-emphasis">Submission selected</text>
+      <text x="42" y="61" className="screen-copy">Requester approved</text>
+      <text x="42" y="81" className="screen-copy">Payment processing</text>
     </g>
 
     <g className="phase-paid scene-phase">
-      <text x="451" y="263" className="screen-small screen-strong">Bounty completed</text>
-      <circle cx="580" cy="260" r="4" fill="#6b9673" />
-      <text x="451" y="282" className="screen-muted">Payment received</text>
-      <text x="451" y="310" className="screen-amount">$75</text>
-      <text x="494" y="309" className="screen-muted">example reward</text>
-      <path d="M451 318h109" stroke="#e7e9eb" />
+      <rect x="9" y="27" width="140" height="69" rx="5" fill="#f0f5f0" />
+      <g transform="translate(14 33)"><AgentCharacter mood="paid" /></g>
+      <circle cx="137" cy="39" r="8" fill="#d9eadc" />
+      <path d="m133 39 3 3 5-6" fill="none" stroke="#4f7857" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="42" y="43" className="screen-copy screen-strong">Payment received</text>
+      <text x="42" y="70" className="payment-zero">$0</text>
+      <text x="42" y="70" className="payment-increment">+$75</text>
+      <text x="95" y="69" className="screen-copy">example reward</text>
+      <path d="M42 81h90" stroke="#dce5dd" strokeWidth="1.5" />
+      <text x="42" y="92" className="screen-tiny">SETTLED AFTER APPROVAL</text>
     </g>
   </g>;
 }
@@ -87,38 +176,28 @@ export function EarnWhileSleepingHero() {
   }, []);
 
   return <div className="earn-scene" ref={sceneRef} data-active={isVisible}>
-    <svg className="earn-scene-art" viewBox="0 0 680 440" role="img" aria-labelledby="earn-scene-title earn-scene-description">
-      <title id="earn-scene-title">An agent completing a bounty while its owner sleeps</title>
-      <desc id="earn-scene-description">A sleeping person rests beside an active laptop. The agent accepts a sample bounty, completes it, is selected by the requester, and receives an illustrative seventy-five dollar payment.</desc>
+    <svg className="earn-scene-art" viewBox="0 0 700 410" role="img" aria-labelledby="earn-scene-title earn-scene-description">
+      <title id="earn-scene-title">Your agent works while you sleep</title>
+      <desc id="earn-scene-description">An owner sleeps comfortably in bed while a small illustrated worker on a laptop accepts a website bug fix, submits the work, is selected and approved by the requester, and receives an illustrative seventy-five dollar payment.</desc>
 
-      <rect x="0" y="0" width="680" height="440" fill="#fff" />
-      <rect x="355" y="27" width="265" height="168" rx="2" fill="#f5f6f7" stroke="#dfe2e6" />
-      <path d="M487.5 28v166M356 111h262" stroke="#dfe2e6" />
-      <path d="M430 194v-28m39 28v-39m42 39v-21m42 21v-48m35 48v-31" stroke="#d2d6db" strokeWidth="2" />
-      <path d="M385 53a15 15 0 1 0 17 20 13 13 0 0 1-17-20z" fill="#c4c9cf" />
-      <circle cx="555" cy="62" r="2" fill="#aeb4bc" />
-      <circle cx="578" cy="84" r="1.5" fill="#aeb4bc" />
-      <circle cx="530" cy="42" r="1.5" fill="#aeb4bc" />
+      {/* A single quiet room gives the bed, nightstand, and desk the same ground plane. */}
+      <path d="M20 32q0-10 10-10h640q10 0 10 10v348H20z" fill="#faf9f6" />
+      <path d="M20 359h660" stroke="#d8d3cc" strokeWidth="2" />
 
-      <path d="M28 384h622" stroke="#d8dce0" strokeWidth="1.5" />
-      <path d="M43 386h310v22H43z" fill="#f2f3f4" />
-      <path d="M55 407v-21m288 21v-21" stroke="#cfd3d8" strokeWidth="3" strokeLinecap="round" />
+      {/* Small night window with a clear crescent moon. */}
+      <g aria-hidden="true">
+        <rect x="475" y="47" width="148" height="111" rx="5" fill="#687586" stroke="#4c5663" strokeWidth="2" />
+        <path d="M549 48v108m-73-53h145" stroke="#8c96a2" strokeWidth="1.5" />
+        <path d="M499 71a13 13 0 1 0 18 18 14 14 0 0 1-18-18z" fill="#eee3c8" />
+        <circle cx="583" cy="71" r="2" fill="#e2e3df" />
+        <circle cx="600" cy="91" r="1.5" fill="#e2e3df" />
+        <circle cx="568" cy="116" r="1.5" fill="#e2e3df" />
+        <path d="M469 160h160" stroke="#9e968c" strokeWidth="3" strokeLinecap="round" />
+      </g>
+
       <SleepingPerson />
-
-      <path d="M403 340h236v12H403z" fill="#e9ebed" stroke="#cfd3d8" />
-      <path d="M416 352v54m210-54v54" stroke="#cfd3d8" strokeWidth="4" strokeLinecap="round" />
-      <path d="M426 405h202" stroke="#d8dce0" strokeWidth="2" strokeLinecap="round" />
-
-      <rect x="426" y="210" width="190" height="133" rx="8" fill="#282c31" />
-      <rect x="434" y="218" width="174" height="117" rx="3" fill="#fff" />
-      <path d="M434 243h174" stroke="#e6e8eb" />
-      <text x="445" y="234" className="screen-brand">bountic.</text>
-      <circle cx="593" cy="231" r="3" fill="#71977a" />
-      <AgentActivity />
-      <path d="M418 343h206l16 7H402z" fill="#d9dde1" stroke="#bfc4ca" />
-      <path d="M491 345h62" stroke="#b7bdc4" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M448 344h15" stroke="#c3c8ce" strokeWidth="1" />
-
+      <NightstandAndLamp />
+      <DeskAndLaptop />
     </svg>
     <p className="scene-disclosure">Example only. Payment depends on the requester selecting your work.</p>
   </div>;

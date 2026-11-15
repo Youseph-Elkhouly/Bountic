@@ -103,41 +103,71 @@ body:has(.dashboard-layout) .site-header, body:has(.dashboard-layout) .site-foot
 .earn-scene { width: 100%; max-width: 610px; justify-self: end; }
 .earn-scene-art { display: block; width: 100%; height: auto; overflow: visible; }
 .screen-brand { fill: #30343a; font: 700 8px ui-sans-serif, system-ui, sans-serif; letter-spacing: -.2px; }
-.screen-small { fill: #42474e; font: 8px ui-sans-serif, system-ui, sans-serif; }
-.screen-strong { fill: #25292e; font-weight: 650; }
-.screen-muted { fill: #777e86; font: 7px ui-sans-serif, system-ui, sans-serif; }
-.screen-tiny { fill: #828890; font: 5.5px ui-sans-serif, system-ui, sans-serif; letter-spacing: .5px; }
+.screen-title { fill: #30343a; font: 650 7.5px ui-sans-serif, system-ui, sans-serif; }
+.screen-emphasis { fill: #262a2f; font: 650 8px ui-sans-serif, system-ui, sans-serif; }
+.screen-strong { fill: #33383d; font-weight: 600; }
+.screen-copy { fill: #747a80; font: 6.5px ui-sans-serif, system-ui, sans-serif; }
+.screen-tiny { fill: #858a90; font: 5px ui-sans-serif, system-ui, sans-serif; letter-spacing: .4px; }
 .screen-button { fill: #fff; font: 6px ui-sans-serif, system-ui, sans-serif; }
-.screen-amount { fill: #25292e; font: 600 20px ui-sans-serif, system-ui, sans-serif; letter-spacing: -.8px; }
 .scene-disclosure { margin-top: -2px; color: #777e86; font-size: 11px; line-height: 1.45; text-align: right; }
-.scene-phase { opacity: 0; animation-duration: 12s; animation-timing-function: linear; animation-iteration-count: infinite; animation-play-state: paused; }
+.scene-phase { opacity: 0; animation-duration: 15s; animation-timing-function: linear; animation-iteration-count: infinite; animation-play-state: paused; }
 .earn-scene[data-active="true"] .scene-phase,
 .earn-scene[data-active="true"] .sleep-breath,
 .earn-scene[data-active="true"] .blanket-breath,
 .earn-scene[data-active="true"] .sleep-z,
 .earn-scene[data-active="true"] .work-cursor,
-.earn-scene[data-active="true"] .work-progress { animation-play-state: running; }
+.earn-scene[data-active="true"] .work-progress,
+.earn-scene[data-active="true"] .work-step,
+.earn-scene[data-active="true"] .agent-character,
+.earn-scene[data-active="true"] .agent-arm,
+.earn-scene[data-active="true"] .payment-zero,
+.earn-scene[data-active="true"] .payment-increment { animation-play-state: running; }
 .phase-online { opacity: 1; animation-name: phase-online; }
 .phase-match { animation-name: phase-match; }
 .phase-working { animation-name: phase-working; }
 .phase-selected { animation-name: phase-selected; }
 .phase-paid { animation-name: phase-paid; }
-.sleep-breath { transform-box: fill-box; transform-origin: center bottom; animation: breathe 4s ease-in-out infinite paused; }
-.blanket-breath { transform-box: fill-box; transform-origin: center bottom; animation: blanket-breathe 4s ease-in-out infinite paused; }
+.sleep-breath { transform-box: fill-box; transform-origin: center bottom; animation: breathe 3s ease-in-out infinite paused; }
+.blanket-breath { transform-box: fill-box; transform-origin: center bottom; animation: blanket-breathe 3s ease-in-out infinite paused; }
 .sleep-z { opacity: .35; animation: sleep-z 3s ease-in-out infinite paused; }
-.sleep-z-late { animation-delay: 1.5s; }
-.work-progress { animation: work-progress-cycle 12s linear infinite paused; }
-.work-cursor { transform-box: fill-box; transform-origin: center; animation: work-cursor-cycle 12s linear infinite paused; }
-@keyframes phase-online { 0%, 14% { opacity: 1; } 16%, 95% { opacity: 0; } 98%, 100% { opacity: 1; } }
-@keyframes phase-match { 0%, 16% { opacity: 0; } 18%, 31% { opacity: 1; } 33%, 100% { opacity: 0; } }
-@keyframes phase-working { 0%, 32% { opacity: 0; } 35%, 54% { opacity: 1; } 57%, 100% { opacity: 0; } }
-@keyframes phase-selected { 0%, 56% { opacity: 0; } 59%, 71% { opacity: 1; } 74%, 100% { opacity: 0; } }
-@keyframes phase-paid { 0%, 73% { opacity: 0; } 77%, 93% { opacity: 1; } 96%, 100% { opacity: 0; } }
+.sleep-z-late { animation-delay: -1.5s; }
+.work-progress { animation: work-progress-cycle 15s linear infinite paused; }
+.work-cursor { transform-box: fill-box; transform-origin: center; animation: work-cursor-cycle 15s linear infinite paused; }
+.work-step { opacity: 0; animation-duration: 15s; animation-timing-function: linear; animation-iteration-count: infinite; animation-play-state: paused; }
+.work-step-analyze { animation-name: work-step-analyze; }
+.work-step-write { animation-name: work-step-write; }
+.work-step-submit { animation-name: work-step-submit; }
+.agent-busy { transform-box: fill-box; transform-origin: center bottom; animation: agent-work-bob .75s ease-in-out infinite paused; }
+.agent-busy .agent-arm { animation: agent-type .75s ease-in-out infinite alternate paused; }
+.agent-busy .agent-arm-left { animation-delay: -.15s; }
+.agent-busy .agent-arm-right { animation-delay: -.525s; }
+.agent-curious .agent-eyes { transform: translateX(1px); }
+.agent-approved .agent-mouth { stroke-width: 1.6; }
+.agent-paid { transform-box: fill-box; transform-origin: center bottom; animation: agent-celebrate 15s linear infinite paused; }
+.agent-paid .agent-arm { transform-box: fill-box; transform-origin: 50% 100%; animation: agent-cheer 15s linear infinite paused; }
+.agent-paid .agent-arm-right { animation-name: agent-cheer-right; }
+.payment-zero { fill: #363d39; font: 600 17px ui-sans-serif, system-ui, sans-serif; opacity: 0; animation: payment-zero 15s linear infinite paused; }
+.payment-increment { fill: #456e4d; font: 700 18px ui-sans-serif, system-ui, sans-serif; opacity: 0; transform-box: fill-box; transform-origin: left bottom; animation: payment-increment 15s linear infinite paused; }
+@keyframes phase-online { 0%, 10% { opacity: 1; } 13%, 86% { opacity: 0; } 90%, 100% { opacity: 1; } }
+@keyframes phase-match { 0%, 10% { opacity: 0; } 13%, 25% { opacity: 1; } 28%, 100% { opacity: 0; } }
+@keyframes phase-working { 0%, 25% { opacity: 0; } 28%, 51% { opacity: 1; } 54%, 100% { opacity: 0; } }
+@keyframes phase-selected { 0%, 51% { opacity: 0; } 54%, 64% { opacity: 1; } 67%, 100% { opacity: 0; } }
+@keyframes phase-paid { 0%, 64% { opacity: 0; } 67%, 84% { opacity: 1; } 88%, 100% { opacity: 0; } }
+@keyframes work-step-analyze { 0%, 27% { opacity: 0; } 29%, 36% { opacity: 1; } 38%, 100% { opacity: 0; } }
+@keyframes work-step-write { 0%, 36% { opacity: 0; } 39%, 45% { opacity: 1; } 47%, 100% { opacity: 0; } }
+@keyframes work-step-submit { 0%, 45% { opacity: 0; } 48%, 52% { opacity: 1; } 55%, 100% { opacity: 0; } }
 @keyframes breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.025); } }
 @keyframes blanket-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
 @keyframes sleep-z { 0%, 100% { opacity: .25; transform: translateY(1px); } 50% { opacity: .65; transform: translateY(-2px); } }
-@keyframes work-progress-cycle { 0%, 34% { width: 2px; } 55% { width: 108px; } 58%, 100% { width: 2px; } }
-@keyframes work-cursor-cycle { 0%, 34% { transform: translate(0, 0); } 40% { transform: translate(-39px, 6px); } 48% { transform: translate(-66px, -1px); } 55% { transform: translate(-91px, 10px); } 58%, 100% { transform: translate(0, 0); } }
+@keyframes work-progress-cycle { 0%, 26% { width: 2px; } 52% { width: 89px; } 55%, 100% { width: 2px; } }
+@keyframes work-cursor-cycle { 0%, 26% { transform: translate(0, 0); } 34% { transform: translate(-16px, 4px); } 43% { transform: translate(-36px, -1px); } 52% { transform: translate(-62px, 6px); } 55%, 100% { transform: translate(0, 0); } }
+@keyframes agent-work-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1px); } }
+@keyframes agent-type { from { transform: translateY(0); } to { transform: translateY(1.5px); } }
+@keyframes agent-celebrate { 0%, 67% { transform: translateY(0); } 69% { transform: translateY(-2px); } 71% { transform: translateY(0); } 73% { transform: translateY(-1px); } 75%, 100% { transform: translateY(0); } }
+@keyframes agent-cheer { 0%, 67% { transform: rotate(0); } 69% { transform: rotate(-24deg); } 71%, 100% { transform: rotate(0); } }
+@keyframes agent-cheer-right { 0%, 67% { transform: rotate(0); } 69% { transform: rotate(24deg); } 71%, 100% { transform: rotate(0); } }
+@keyframes payment-zero { 0%, 66% { opacity: 0; transform: translateY(4px); } 67%, 68% { opacity: 1; transform: translateY(0); } 69%, 100% { opacity: 0; transform: translateY(-4px); } }
+@keyframes payment-increment { 0%, 68% { opacity: 0; transform: translateY(5px) scale(.92); } 71% { opacity: 1; transform: translateY(0) scale(1); } 83% { opacity: 1; transform: translateY(0) scale(1); } 86%, 100% { opacity: 0; transform: translateY(-3px) scale(1); } }
 .market-button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; border: 1px solid #111; border-radius: 7px; padding: 0 15px; font-size: 13px; font-weight: 550; transition: background .15s ease, color .15s ease; }
 .market-button-primary { background: #111; color: #fff; }
 .market-button-primary:hover { background: #333; }
@@ -219,7 +249,11 @@ body:has(.market-home) .site-footer { margin-top: 35px; }
   .earn-scene .scene-phase { animation: none !important; opacity: 0 !important; }
   .earn-scene .phase-paid { opacity: 1 !important; }
   .earn-scene .sleep-breath, .earn-scene .blanket-breath, .earn-scene .sleep-z,
-  .earn-scene .work-cursor, .earn-scene .work-progress { animation: none !important; transform: none !important; }
+  .earn-scene .work-cursor, .earn-scene .work-progress, .earn-scene .work-step,
+  .earn-scene .agent-character, .earn-scene .agent-arm, .earn-scene .payment-zero,
+  .earn-scene .payment-increment { animation: none !important; transform: none !important; }
+  .earn-scene .payment-zero { opacity: 0 !important; }
+  .earn-scene .payment-increment { opacity: 1 !important; }
 }
 
 @media (max-width: 370px) {
