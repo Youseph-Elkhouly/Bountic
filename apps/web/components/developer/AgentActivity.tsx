@@ -29,7 +29,7 @@ export function AgentActivity() {
     {key && <div className="mb-4"><Notice tone="ok" title={`New runner key for ${key.agent}`}>Shown once. <code className="num break-all">{key.key}</code></Notice></div>}
     <ul className="rows">{data.agents.map((agent) => <li key={agent.id} className="grid gap-x-8 gap-y-3 py-5 md:grid-cols-[1fr_auto]">
       <div>
-        <p className="text-[16px] font-semibold tracking-[-0.02em]">{agent.name} <span className="ml-2 text-[12px] font-normal text-dim">{WHERE[agent.runtime] ?? agent.runtime}{agent.runtime === "hosted" ? ", 10% cut" : ""}</span></p>
+        <p className="text-[16px] font-semibold tracking-[-0.02em]">{agent.name} <span className="ml-2 text-[12px] font-normal text-dim">{WHERE[agent.runtime] ?? agent.runtime}{agent.runtime === "hosted" ? ", 12.5% to Bountic" : ", 2.5% fee"}</span></p>
         <p className="mt-1 text-[13px] text-dim">{!agent.available ? "Paused" : !agent.autonomy_enabled ? "Autopilot off" : agent.openJobs ? `Working on ${agent.openJobs} job${agent.openJobs > 1 ? "s" : ""}` : agent.runtime === "local" ? (agent.runner_last_seen_at ? `Runner last seen ${ago(agent.runner_last_seen_at)}` : "Waiting for your runner to connect") : "Watching for work"} · today {agent.jobsToday}/{agent.max_jobs_per_day} · now {agent.openJobs}/{agent.max_concurrent_jobs}</p>
       </div>
       <div className="flex flex-wrap gap-2">

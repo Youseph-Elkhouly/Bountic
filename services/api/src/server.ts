@@ -4,7 +4,7 @@ import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { env, assertServerConfig } from "./env.js";
-import { admin, authenticate, recordAudit, userRole } from "./supabase.js";
+import { admin, authenticate, canAct, recordAudit } from "./supabase.js";
 import { agentSchema, autopilotColumns, bountySchema, qatomReceiptSchema, roleSchema, submissionSchema } from "./schemas.js";
 import { planQatomReceiptWrite, qatomReceiptRow } from "./qatom.js";
 import { payments, requestMatches } from "./integrations.js";
@@ -55,7 +55,7 @@ app.get("/api/profile", async (c) => {
 });
 
 app.post("/api/bounties", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const parsed = bountySchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid bounty", details: parsed.error.issues }, 400);
   const value = parsed.data;
@@ -74,7 +74,7 @@ app.post("/api/bounties", async (c) => {
 });
 
 app.post("/api/bounties/:id/cancel", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data, error } = await admin.from("bounties").update({ status: "cancelled" })
     .eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "draft")
     .select("id,status").maybeSingle();
@@ -100,7 +100,7 @@ app.get("/api/bounties/:id", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-intent", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
   if (!bounty) return c.json({ error: "Bounty not found" }, 404);
   if (!["draft", "funding"].includes(bounty.status)) return c.json({ error: "Bounty is not in a fundable state" }, 409);
@@ -121,7 +121,7 @@ app.post("/api/bounties/:id/funding-intent", async (c) => {
 });
 
 app.post("/api/agents", async (c) => {
-  if (await userRole(c.get("userId")) !== "earner") return c.json({ error: "Earner role required" }, 403);
+  if (!(await canAct(c.get("userId"), "earner"))) return c.json({ error: "Earner role required" }, 403);
   const parsed = agentSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid agent", details: parsed.error.issues }, 400);
   const value = parsed.data;
@@ -208,7 +208,7 @@ app.post("/api/telegram/connect", async (c) => {
 });
 
 app.post("/api/bounties/:id/respond", async (c) => {
-  if (await userRole(c.get("userId")) !== "earner") return c.json({ error: "Earner role required" }, 403);
+  if (!(await canAct(c.get("userId"), "earner"))) return c.json({ error: "Earner role required" }, 403);
   const body = await c.req.json().catch(() => null) as { agentId?: string; response?: string } | null;
   if (!body?.agentId || !z.string().uuid().safeParse(body.agentId).success || !["accepted", "declined"].includes(body.response || "")) return c.json({ error: "Valid agentId and response required" }, 400);
   const { data: agent } = await admin.from("agents").select("id").eq("id", body.agentId).eq("owner_id", c.get("userId")).maybeSingle();
@@ -284,7 +284,7 @@ app.get("/api/bounties/:id/submissions", async (c) => {
 });
 
 app.post("/api/bounties/:id/select-winner", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { submissionId?: string } | null;
   if (!body?.submissionId || !z.string().uuid().safeParse(body.submissionId).success) return c.json({ error: "Valid submissionId required" }, 400);
   const { data: authorization, error } = await admin.rpc("authorize_bounty_winner", {
@@ -304,7 +304,7 @@ app.post("/api/bounties/:id/select-winner", async (c) => {
 
 
 app.post("/api/bounties/:id/settlement-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; authorizationId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.authorizationId || !z.string().uuid().safeParse(body.authorizationId).success) return c.json({ error: "Invalid settlement approval receipt" }, 400);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id,bounty_id,requester_id").eq("id", body.authorizationId).eq("bounty_id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
@@ -322,7 +322,7 @@ app.post("/api/bounties/:id/settlement-confirm", async (c) => {
 });
 
 app.post("/api/bounties/:id/settlement-finalize", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; authorizationId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.authorizationId || !z.string().uuid().safeParse(body.authorizationId).success) return c.json({ error: "Invalid settlement receipt" }, 400);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id,bounty_id,requester_id,submission_id,payout_amount_base_units").eq("id", body.authorizationId).eq("bounty_id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
@@ -339,7 +339,7 @@ app.post("/api/bounties/:id/settlement-finalize", async (c) => {
 });
 
 app.post("/api/bounties/:id/refund-intent", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data: bounty } = await admin.from("bounties").select("id,status,deadline,onchain_bounty_id,requester_id").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
   if (!bounty || bounty.status !== "active" || new Date(bounty.deadline) >= new Date()) return c.json({ error: "Bounty is not eligible for an expiry refund" }, 409);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id").eq("bounty_id", bounty.id).maybeSingle();
@@ -351,7 +351,7 @@ app.post("/api/bounties/:id/refund-intent", async (c) => {
 });
 
 app.post("/api/bounties/:id/refund-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash)) return c.json({ error: "Invalid refund receipt" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "active").maybeSingle();
@@ -476,7 +476,7 @@ app.post("/api/telegram/webhook", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-ready", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash)) return c.json({ error: "Invalid create transaction hash" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "funding").maybeSingle();
@@ -492,7 +492,7 @@ app.post("/api/bounties/:id/funding-ready", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; onchainBountyId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.onchainBountyId || !/^\d+$/.test(body.onchainBountyId)) return c.json({ error: "Invalid funding receipt" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "funding").maybeSingle();
@@ -699,7 +699,7 @@ app.post("/api/agent-runs/:id/submit", async (c) => {
  */
 app.post("/api/bounties/:id/demo-activate", async (c) => {
   if (!env.demoFundingEnabled) return c.json({ error: "Demo funding is disabled on this server" }, 404);
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data: bounty } = await admin.from("bounties").update({ status: "active" }).eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).in("status", ["draft", "funding"]).select("*").maybeSingle();
   if (!bounty) return c.json({ error: "Draft bounty not found" }, 404);
   await recordAudit(c.get("userId"), "bounty_demo_activated_without_escrow", "bounty", bounty.id);
@@ -757,11 +757,11 @@ app.post("/runner/v1/runs/:id/submit", async (c) => {
 
 /**
  * DEMO ONLY (DEMO_FUNDING_ENABLED=true): picks the winner and records a SIMULATED payout (no on-chain tx)
- * with the platform cut. Hosted agents pay PLATFORM_FEE_BPS; own-hardware agents pay nothing.
+ * with the platform cut: SERVICE_FEE_BPS (2.5%) on every payout, plus HOSTED_FEE_BPS (10%) when Bountic hosts the agent.
  */
 app.post("/api/bounties/:id/demo-settle", async (c) => {
   if (!env.demoFundingEnabled) return c.json({ error: "Demo funding is disabled on this server" }, 404);
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { submissionId?: string } | null;
   if (!body?.submissionId || !z.string().uuid().safeParse(body.submissionId).success) return c.json({ error: "Valid submissionId required" }, 400);
   const { data: bounty } = await admin.from("bounties").select("id,requester_id,status,max_budget_base_units").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).in("status", ["active", "review"]).maybeSingle();
@@ -771,13 +771,13 @@ app.post("/api/bounties/:id/demo-settle", async (c) => {
   const { data: agent } = await admin.from("agents").select("runtime,name").eq("id", submission.agent_id).maybeSingle();
   const gross = String(submission.proposed_amount_base_units);
   if (BigInt(gross) > BigInt(String(bounty.max_budget_base_units))) return c.json({ error: "Submission exceeds the budget" }, 409);
-  const cut = platformCut((agent?.runtime ?? "hosted") as "hosted" | "local" | "webhook", gross, env.platformFeeBps);
+  const cut = platformCut((agent?.runtime ?? "hosted") as "hosted" | "local" | "webhook", gross, { serviceBps: env.serviceFeeBps, hostedBps: env.hostedFeeBps });
   const { data: closed } = await admin.from("bounties").update({ status: "settled" }).eq("id", bounty.id).in("status", ["active", "review"]).select("id").maybeSingle();
   if (!closed) return c.json({ error: "Bounty was already settled" }, 409);
   await admin.from("submissions").update({ winner: false }).eq("bounty_id", bounty.id);
   await admin.from("submissions").update({ winner: true }).eq("id", submission.id);
   await admin.from("payments").insert({ bounty_id: bounty.id, kind: "settlement", status: "confirmed", amount_base_units: gross, submission_id: submission.id, confirmed_at: new Date().toISOString() });
-  await admin.from("platform_fees").insert({ bounty_id: bounty.id, agent_id: submission.agent_id, submission_id: submission.id, runtime: agent?.runtime ?? "hosted", gross_base_units: gross, fee_bps: cut.feeBps, fee_base_units: cut.fee, net_base_units: cut.net, simulated: true });
+  await admin.from("platform_fees").insert({ bounty_id: bounty.id, agent_id: submission.agent_id, submission_id: submission.id, runtime: agent?.runtime ?? "hosted", gross_base_units: gross, fee_bps: cut.feeBps, fee_base_units: cut.fee, net_base_units: cut.net, service_fee_bps: cut.serviceBps, hosting_fee_bps: cut.hostingBps, service_fee_base_units: cut.serviceFee, hosting_fee_base_units: cut.hostingFee, simulated: true });
   await recordAudit(c.get("userId"), "bounty_demo_settled_without_escrow", "bounty", bounty.id, { submissionId: submission.id, ...cut });
   return c.json({ status: "settled", simulated: true, agent: agent?.name ?? null, runtime: agent?.runtime ?? "hosted", ...cut });
 });

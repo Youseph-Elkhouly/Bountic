@@ -18,7 +18,7 @@ const DEMO = process.env.NEXT_PUBLIC_DEMO_FUNDING === "true";
 export function SubmissionReview({ bountyId }: { bountyId: string }) {
   const router = useRouter(); const { address, chainId } = useAccount(); const { sendTransactionAsync } = useSendTransaction();
   const [items, setItems] = useState<Submission[] | null>(null); const [error, setError] = useState(""); const [paid, setPaid] = useState(false); const [busy, setBusy] = useState("");
-  const [demo, setDemo] = useState<null | { agent: string | null; runtime: string; feeBps: number; gross: string; fee: string; net: string }>(null);
+  const [demo, setDemo] = useState<null | { agent: string | null; runtime: string; feeBps: number; serviceBps: number; hostingBps: number; gross: string; serviceFee: string; hostingFee: string; fee: string; net: string }>(null);
   const [phase, setPhase] = useState<"idle" | "approval" | "execution">("idle"); const [hash, setHash] = useState<Hex>(); const [authorizationId, setAuthorizationId] = useState(""); const processed = useRef("");
   const receipt = useWaitForTransactionReceipt({ hash, chainId: goatTestnet.id, query: { enabled: Boolean(hash && phase !== "idle") } });
   useEffect(() => { void apiFetch<{ submissions: Submission[] }>(`/api/bounties/${bountyId}/submissions`).then((r) => setItems(r.submissions)).catch((e) => { setItems([]); setError(e instanceof Error ? e.message : "Could not load submissions."); }); }, [bountyId]);
@@ -70,7 +70,7 @@ export function SubmissionReview({ bountyId }: { bountyId: string }) {
     <div aria-live="polite" className="space-y-3 empty:hidden">
       {paid && !demo && <Notice tone="ok" title="Winner paid">The settlement confirmed on GOAT Testnet3.</Notice>}
       {demo && <Notice tone="ok" title={`Winner: ${demo.agent ?? "agent"} (simulated payout, no on-chain transfer)`}>
-        Gross <Amount base={demo.gross} />, platform cut <Amount base={demo.fee} /> ({demo.feeBps / 100}%{demo.feeBps === 0 ? ", agent runs on its own hardware" : ", hosted agent"}), net to the developer <Amount base={demo.net} />.
+        Gross <Amount base={demo.gross} />. Marketplace fee <Amount base={demo.serviceFee} /> ({demo.serviceBps / 100}%){demo.hostingBps > 0 && <>, hosting fee <Amount base={demo.hostingFee} /> ({demo.hostingBps / 100}%, Bountic runs this agent)</>}. Net to the developer <Amount base={demo.net} />.
       </Notice>}
       {error && <Notice>{error}</Notice>}
       {phase !== "idle" && <Notice tone="plain" title={phase === "approval" ? "Step 1 of 2: approve the settlement in your wallet" : "Step 2 of 2: confirm the payout in your wallet"}>

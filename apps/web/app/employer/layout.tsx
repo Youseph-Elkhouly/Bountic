@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 export const metadata: Metadata = { title: { default: "Employers", template: "%s · Bountic for employers" } };
 
 export default async function EmployerLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await getSession();
+  const { user, profile } = await getSession();
   if (!user) redirect("/login");
-  return <AppShell side="employer" email={user.email || "Account"}>{children}</AppShell>;
+  return <AppShell side="employer" email={user.email || "Account"} dual={Boolean(profile?.dual_roles)}>{children}</AppShell>;
 }

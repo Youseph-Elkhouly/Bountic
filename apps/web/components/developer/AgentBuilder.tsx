@@ -3,14 +3,15 @@ import { DragEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Notice } from "@/components/ui";
 import { apiFetch } from "@/lib/api";
-import { AgentDraft, MODELS, TEMPLATES, emptyDraft, parseManifest, toApiBody, toManifest } from "./manifest";
+import { AgentDraft, MODELS, TEMPLATES, emptyDraft, toApiBody, toManifest } from "./manifest";
+import { importAgentFiles, readDropped } from "./importers";
 
 const csv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
-const FEE_PERCENT = 10;
+const SERVICE_PERCENT = 2.5; const HOSTING_PERCENT = 10;
 const RUNTIMES: Array<{ id: AgentDraft["runtime"]; title: string; blurb: string }> = [
-  { id: "local", title: "On my own machine", blurb: "Primary option. Your hardware, your model, your keys. Free. A small runner script pulls jobs, so no public URL is needed." },
-  { id: "hosted", title: `Hosted by Bountic (${FEE_PERCENT}% cut)`, blurb: `We run it for you on Backboard. Nothing to set up. Bountic keeps ${FEE_PERCENT}% of what the agent wins.` },
-  { id: "webhook", title: "My server (webhook)", blurb: "Bountic POSTs each job to your public HTTPS endpoint. Free." },
+  { id: "local", title: "On my own machine", blurb: `Primary option. Your hardware, your model, your keys. A small runner script pulls jobs, so no public URL is needed. ${SERVICE_PERCENT}% marketplace fee on payouts.` },
+  { id: "hosted", title: `Hosted by Bountic (${SERVICE_PERCENT + HOSTING_PERCENT}% total)`, blurb: `We run it for you on Backboard. Nothing to set up. ${SERVICE_PERCENT}% marketplace fee plus ${HOSTING_PERCENT}% to cover the infrastructure.` },
+  { id: "webhook", title: "My server (webhook)", blurb: `Bountic POSTs each job to your public HTTPS endpoint. ${SERVICE_PERCENT}% marketplace fee on payouts.` },
 ];
 
 export function AgentBuilder() {
@@ -26,14 +27,19 @@ export function AgentBuilder() {
   function pick(template: (typeof TEMPLATES)[number]) { setDraft((current) => ({ ...emptyDraft, runtime: current.runtime, ...template.draft })); setNote(`Loaded the ${template.title} template. Adjust anything below.`); setError(""); }
   async function drop(event: DragEvent<HTMLElement>) {
     event.preventDefault(); setOver(false);
-    const file = event.dataTransfer.files?.[0]; if (!file) return;
-    try { const { draft: next, ignored } = parseManifest(await file.text()); setDraft({ ...emptyDraft, ...next }); setNote(`Imported ${file.name}.${ignored.length ? ` Ignored: ${ignored.join(", ")}.` : ""} Wallets are never imported.`); setError(""); }
-    catch (e) { setError(e instanceof Error ? e.message : "Could not read that file."); }
+    await load(await readDropped(event.dataTransfer.items, event.dataTransfer.files));
+  }
+  async function load(files: Awaited<ReturnType<typeof readDropped>>) {
+    try {
+      if (!files.length) throw new Error("No readable files. Use .md, .txt or .json.");
+      const { draft: next, notes } = importAgentFiles(files);
+      setDraft((current) => ({ ...emptyDraft, runtime: current.runtime, ...next })); setNote(`${notes.join(" ")} Wallets are never imported.`); setError("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not read those files."); }
   }
   function exportJson() { const url = URL.createObjectURL(new Blob([JSON.stringify(toManifest(draft), null, 2)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "bountic.agent.json"; a.click(); URL.revokeObjectURL(url); }
 
   const summary = useMemo(() => {
-    const where = draft.runtime === "hosted" ? `runs on Bountic's servers (${FEE_PERCENT}% cut on wins)` : draft.runtime === "local" ? "runs on your own machine (no fee)" : "calls your server (no fee)";
+    const where = draft.runtime === "hosted" ? `runs on Bountic's servers (${SERVICE_PERCENT + HOSTING_PERCENT}% of wins to Bountic)` : draft.runtime === "local" ? `runs on your own machine (${SERVICE_PERCENT}% marketplace fee on wins)` : `calls your server (${SERVICE_PERCENT}% marketplace fee on wins)`;
     return `${draft.name || "This agent"} ${where}. It takes up to ${draft.maxConcurrentJobs} job${draft.maxConcurrentJobs > 1 ? "s" : ""} at once and ${draft.maxJobsPerDay} a day, bids ${draft.bidPercent}% of the budget${draft.maxBidBaseUnits ? ` (never above ${draft.maxBidBaseUnits})` : ""}, skips anything paying under ${draft.minRewardBaseUnits || "0"}, and ${draft.autoSubmit ? "submits automatically" : "waits for your OK before submitting"}.`;
   }, [draft]);
 
@@ -57,7 +63,13 @@ export function AgentBuilder() {
 
   return <form onSubmit={submit} className="max-w-3xl" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={drop}>
     <section className={`border border-dashed p-5 ${over ? "border-ink bg-paper-2" : "border-rule-strong"}`}>
-      <p className="text-[15px] font-semibold">Start from a template, or drop a <code>bountic.agent.json</code> anywhere on this page</p>
+      <p className="text-[15px] font-semibold">Upload your real agent</p>
+      <p className="hint">Drop a <code>SKILL.md</code>, several skills, a whole skill folder, an agent <code>.md</code> file, <code>AGENTS.md</code>, or a <code>bountic.agent.json</code> anywhere on this page. Name, description, skills and instructions are filled in for you.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <label className="btn cursor-pointer">Choose files<input type="file" multiple accept=".md,.markdown,.txt,.json" className="sr-only" onChange={async (e) => { await load(await readDropped(null, e.target.files)); e.target.value = ""; }} /></label>
+        <label className="btn cursor-pointer">Choose a folder<input type="file" className="sr-only" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={async (e) => { await load(await readDropped(null, e.target.files)); e.target.value = ""; }} /></label>
+      </div>
+      <p className="mt-4 text-[13px] text-dim">Or start from a template:</p>
       <div className="mt-4 flex flex-wrap gap-2">{TEMPLATES.map((t) => <button type="button" key={t.id} className="btn" onClick={() => pick(t)}>{t.emoji} {t.title}<span className="ml-2 text-dim">{t.blurb}</span></button>)}</div>
     </section>
     {note && <div className="mt-4"><Notice tone="plain">{note}</Notice></div>}
@@ -76,7 +88,7 @@ export function AgentBuilder() {
         <label className="label">Skills<input className="field" value={draft.skills.join(", ")} onChange={(e) => set("skills", csv(e.target.value))} placeholder="copywriting, seo" /></label>
         <label className="label">Categories<input className="field" value={draft.categories.join(", ")} onChange={(e) => set("categories", csv(e.target.value))} placeholder="writing, marketing" /></label>
       </div>
-      {draft.runtime !== "local" && <label className="label">Instructions<textarea className="field min-h-24" maxLength={8000} value={draft.instructions} onChange={(e) => set("instructions", e.target.value)} placeholder="How should it work? Tone, structure, rules." /></label>}
+      <label className="label">Instructions and skills<textarea className="field min-h-40 font-mono text-[12px]" maxLength={60000} value={draft.instructions} onChange={(e) => set("instructions", e.target.value)} placeholder="How should it work? Tone, structure, rules. Imported skill files land here." /><span className="hint">{draft.instructions.length.toLocaleString()} / 60,000 characters. {draft.runtime === "local" ? "Your runner receives these with each job." : "Sent to the model as the agent's system instructions."}</span></label>
     </fieldset>
 
     <fieldset className="mt-10 space-y-6 border-t border-rule pt-8"><legend className="float-left mb-4 w-full text-[17px] font-semibold tracking-[-0.02em]">Budgets and limits</legend>

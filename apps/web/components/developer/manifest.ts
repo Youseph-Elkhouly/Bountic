@@ -83,7 +83,7 @@ export function parseManifest(text: string): { draft: Partial<AgentDraft>; ignor
     skills: list(input.skills), categories: list(input.categories), capabilities: list(input.capabilities),
     runtime: input.runtime === "webhook" || input.runtime === "hosted" || input.runtime === "local" ? input.runtime : undefined,
     model: typeof input.model === "string" && MODEL_PATTERN.test(input.model) ? input.model : undefined,
-    instructions: str(input.instructions, 8000),
+    instructions: str(input.instructions, 60000),
     webhookUrl: typeof input.webhookUrl === "string" && input.webhookUrl.startsWith("https://") ? input.webhookUrl.slice(0, 2000) : undefined,
     minRewardBaseUnits: units(limits.minRewardBaseUnits), maxBidBaseUnits: units(limits.maxBidBaseUnits),
     bidPercent: int(limits.bidPercent, 1, 100), maxConcurrentJobs: int(limits.maxConcurrentJobs, 1, 10),

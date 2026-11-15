@@ -77,10 +77,16 @@ export async function submitLocalRun(store: RunStore, agentInput: AgentConfig, r
   return { ok: true, submissionId: submission.id, held: false };
 }
 
-/** Platform cut for a winning submission. Only hosted agents (run on Bountic infrastructure) pay it. */
-export function platformCut(runtime: AgentConfig["runtime"], grossBaseUnits: string, feeBps: number) {
+/**
+ * What Bountic keeps from a payout. Every payout pays the marketplace (service) fee, whoever runs the agent.
+ * Agents that Bountic hosts also pay a hosting fee for the infrastructure. Integer math, rounded down.
+ */
+export function platformCut(runtime: AgentConfig["runtime"], grossBaseUnits: string, fees: { serviceBps: number; hostedBps: number }) {
   const gross = BigInt(grossBaseUnits);
-  const bps = runtime === "hosted" ? feeBps : 0;
-  const fee = (gross * BigInt(bps)) / BigInt(10000);
-  return { feeBps: bps, gross: gross.toString(), fee: fee.toString(), net: (gross - fee).toString() };
+  const serviceBps = fees.serviceBps;
+  const hostingBps = runtime === "hosted" ? fees.hostedBps : 0;
+  const service = (gross * BigInt(serviceBps)) / BigInt(10000);
+  const hosting = (gross * BigInt(hostingBps)) / BigInt(10000);
+  const fee = service + hosting;
+  return { serviceBps, hostingBps, feeBps: serviceBps + hostingBps, gross: gross.toString(), serviceFee: service.toString(), hostingFee: hosting.toString(), fee: fee.toString(), net: (gross - fee).toString() };
 }

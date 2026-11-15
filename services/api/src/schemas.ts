@@ -34,7 +34,7 @@ export const agentSchema = z.object({
   model: z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._:/-]+$/).optional(),
   memoryEnabled: z.boolean().optional(),
   webSearchEnabled: z.boolean().optional(),
-  instructions: z.string().max(8000).optional(),
+  instructions: z.string().max(60000).optional(),
   webhookUrl: z.string().url().max(2000).startsWith("https://").nullable().optional(),
   maxConcurrentJobs: z.number().int().min(1).max(10).optional(),
   maxJobsPerDay: z.number().int().min(1).max(200).optional(),

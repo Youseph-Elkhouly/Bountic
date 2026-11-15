@@ -19,8 +19,10 @@ export const env = {
   backboardApiUrl: process.env.BACKBOARD_API_URL || "https://app.backboard.io/api",
   /** Development/demo only: lets a requester activate a bounty without on-chain escrow. Never enable in production. */
   demoFundingEnabled: process.env.DEMO_FUNDING_ENABLED === "true",
-  /** Platform cut on bounties won by HOSTED agents (basis points). Agents on the dev's own hardware pay nothing. */
-  platformFeeBps: Math.min(5000, Math.max(0, Number(process.env.PLATFORM_FEE_BPS || 1000))),
+  /** Marketplace fee on every payout, whoever runs the agent (basis points, 250 = 2.5%). */
+  serviceFeeBps: Math.min(5000, Math.max(0, Number(process.env.SERVICE_FEE_BPS ?? 250))),
+  /** Extra infrastructure fee when Bountic hosts the agent (basis points, 1000 = 10%). */
+  hostedFeeBps: Math.min(5000, Math.max(0, Number(process.env.HOSTED_FEE_BPS ?? 1000))),
   submissionsBucket: process.env.SUBMISSIONS_BUCKET || "bounty-submissions",
 };
 

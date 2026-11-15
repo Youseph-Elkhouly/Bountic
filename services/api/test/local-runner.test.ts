@@ -64,12 +64,13 @@ test("auto-submit off holds the local draft for review", async () => {
   assert.equal(store.runs[0].status, "awaiting_review");
 });
 
-test("platform cut: 10% on hosted agents, nothing on own-hardware agents, exact integer math", () => {
-  assert.deepEqual(platformCut("hosted", "900", 1000), { feeBps: 1000, gross: "900", fee: "90", net: "810" });
-  assert.deepEqual(platformCut("local", "900", 1000), { feeBps: 0, gross: "900", fee: "0", net: "900" });
-  assert.deepEqual(platformCut("webhook", "900", 1000), { feeBps: 0, gross: "900", fee: "0", net: "900" });
-  assert.equal(platformCut("hosted", "7", 1000).fee, "0");
+test("platform cut: 2.5% on every payout, plus 10% hosting only for hosted agents, exact integer math", () => {
+  const fees = { serviceBps: 250, hostedBps: 1000 };
+  assert.deepEqual(platformCut("local", "40000", fees), { serviceBps: 250, hostingBps: 0, feeBps: 250, gross: "40000", serviceFee: "1000", hostingFee: "0", fee: "1000", net: "39000" });
+  assert.deepEqual(platformCut("webhook", "40000", fees).net, "39000");
+  assert.deepEqual(platformCut("hosted", "40000", fees), { serviceBps: 250, hostingBps: 1000, feeBps: 1250, gross: "40000", serviceFee: "1000", hostingFee: "4000", fee: "5000", net: "35000" });
+  assert.equal(platformCut("local", "7", fees).fee, "0");
   const big = "123456789012345678901234567890";
-  const cut = platformCut("hosted", big, 1000);
+  const cut = platformCut("hosted", big, fees);
   assert.equal(BigInt(cut.fee) + BigInt(cut.net), BigInt(big));
 });
