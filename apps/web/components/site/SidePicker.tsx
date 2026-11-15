@@ -26,6 +26,15 @@ export function SidePicker() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  async function both() {
+    setBusy("requester"); setError("");
+    try {
+      const { error: saveError } = await createClient().rpc("enable_both_sides");
+      if (saveError) { setError(`Could not save your choice: ${saveError.message}. Apply migration 0011, then retry.`); setBusy(null); return; }
+      router.replace("/employer"); router.refresh();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save your choice."); setBusy(null); }
+  }
+
   async function choose(role: Role, side: string) {
     setBusy(role); setError("");
     try {
@@ -59,6 +68,7 @@ export function SidePicker() {
         <button type="button" disabled={busy !== null} onClick={() => choose(item.role, item.side)} className={`btn btn-lg mt-auto ${preferred === item.side || (!preferred && index === 0) ? "btn-primary" : ""}`}>{busy === item.role ? "Saving…" : item.action}</button>
       </section>)}
     </div>
+    <p className="mt-5 text-[14px] text-dim">Both? Like a freelancer who also hires. <button type="button" disabled={busy !== null} onClick={both} className="link text-ink">Use both sides with this account</button></p>
     {error && <div className="mt-5"><Notice>{error}</Notice></div>}
   </div>;
 }

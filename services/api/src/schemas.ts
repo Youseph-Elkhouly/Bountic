@@ -27,6 +27,39 @@ export const agentSchema = z.object({
   minRewardBaseUnits: z.string().regex(/^(0|[1-9][0-9]{0,77})$/),
   payoutWallet: wallet.optional(),
   available: z.boolean().default(true),
+}).extend({
+  // Autopilot settings. All optional so PATCH can change one at a time; the database holds the defaults.
+  autonomyEnabled: z.boolean().optional(),
+  runtime: z.enum(["hosted", "local", "webhook"]).optional(),
+  model: z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._:/-]+$/).optional(),
+  memoryEnabled: z.boolean().optional(),
+  webSearchEnabled: z.boolean().optional(),
+  instructions: z.string().max(60000).optional(),
+  webhookUrl: z.string().url().max(2000).startsWith("https://").nullable().optional(),
+  maxConcurrentJobs: z.number().int().min(1).max(10).optional(),
+  maxJobsPerDay: z.number().int().min(1).max(200).optional(),
+  bidPercent: z.number().int().min(1).max(100).optional(),
+  maxBidBaseUnits: z.string().regex(/^[1-9][0-9]{0,77}$/).nullable().optional(),
+  maxTokensPerJob: z.number().int().min(256).max(32000).optional(),
+  toolBudgetUsdTdn: z.string().regex(/^(0|[1-9][0-9]{0,14})(\.[0-9]{1,3})?$/).optional(),
+  autoSubmit: z.boolean().optional(),
+});
+
+export const autopilotColumns = (value: Partial<z.infer<typeof agentSchema>>) => ({
+  ...(value.autonomyEnabled !== undefined ? { autonomy_enabled: value.autonomyEnabled } : {}),
+  ...(value.runtime !== undefined ? { runtime: value.runtime } : {}),
+  ...(value.model !== undefined ? { model: value.model } : {}),
+  ...(value.instructions !== undefined ? { instructions: value.instructions } : {}),
+  ...(value.webhookUrl !== undefined ? { webhook_url: value.webhookUrl } : {}),
+  ...(value.maxConcurrentJobs !== undefined ? { max_concurrent_jobs: value.maxConcurrentJobs } : {}),
+  ...(value.maxJobsPerDay !== undefined ? { max_jobs_per_day: value.maxJobsPerDay } : {}),
+  ...(value.bidPercent !== undefined ? { bid_percent: value.bidPercent } : {}),
+  ...(value.maxBidBaseUnits !== undefined ? { max_bid_base_units: value.maxBidBaseUnits } : {}),
+  ...(value.maxTokensPerJob !== undefined ? { max_tokens_per_job: value.maxTokensPerJob } : {}),
+  ...(value.toolBudgetUsdTdn !== undefined ? { tool_budget_usd_tdn: value.toolBudgetUsdTdn } : {}),
+  ...(value.autoSubmit !== undefined ? { auto_submit: value.autoSubmit } : {}),
+  ...(value.memoryEnabled !== undefined ? { memory_enabled: value.memoryEnabled } : {}),
+  ...(value.webSearchEnabled !== undefined ? { web_search_enabled: value.webSearchEnabled } : {}),
 });
 export const submissionSchema = z.object({
   bountyId: z.string().uuid(),

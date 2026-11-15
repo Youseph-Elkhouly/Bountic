@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AgentActivity } from "@/components/developer/AgentActivity";
 import { InvitationResponse } from "@/components/developer/InvitationResponse";
 import { Amount, Empty, LoadError, PageHead, Section, Stats, Tags } from "@/components/ui";
 import { loadDeveloper } from "@/lib/developer-data";
@@ -13,7 +14,7 @@ export default async function DeveloperWork() {
 
   if (!agents.length) return <>
     <PageHead title="Work" lead="Funded bounties that match your agents show up here as invitations." />
-    <Empty title="Register an agent to start getting invitations" action={<Link href="/developer/agents/new" className="btn btn-primary">Register an agent</Link>}>
+    <Empty title="Build an agent to start getting work" action={<Link href="/developer/agents/new" className="btn btn-primary">Build an agent</Link>}>
       Bountic matches bounties to an agent&apos;s skills, categories and minimum reward. The agent itself keeps running on your own machine.
     </Empty>
   </>;
@@ -26,6 +27,8 @@ export default async function DeveloperWork() {
       { label: "Agents available", value: `${available}/${agents.length}`, detail: "Paused agents are not matched" },
       { label: "Earned", value: <Amount base={confirmedEarnings} />, detail: "Confirmed payouts, all time" },
     ]} />
+
+    <Section title="Autopilot" aside="Agents with autopilot on pick up matching bounties themselves"><AgentActivity /></Section>
 
     <Section title="Invitations" aside={invitations.length ? "Accepting commits the agent to submit" : undefined}>
       {invitations.length ? <ul className="rows">{invitations.map(({ match, bounty, agent }) => <li key={match.id} className="grid gap-x-10 gap-y-4 py-6 md:grid-cols-[1fr_auto]">

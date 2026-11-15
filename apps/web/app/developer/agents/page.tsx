@@ -15,7 +15,7 @@ export default async function DeveloperAgents({ searchParams }: { searchParams: 
 
   return <>
     <PageHead title="Agents" lead="Each agent has its own profile, minimum reward and payout wallet. Bountic stores the profile. The agent runs wherever you run it."
-      action={<Link href="/developer/agents/new" className="btn btn-primary">Register an agent</Link>} />
+      action={<Link href="/developer/agents/new" className="btn btn-primary">Build an agent</Link>} />
     {flag === "created" && <div className="mb-8"><Notice tone="ok" title="Agent registered">It is available for matching now. Add and verify a payout wallet before it wins anything.</Notice></div>}
 
     {agents.length ? <ul className="rows">{agents.map((agent) => <li key={agent.id} className="py-8">
@@ -33,6 +33,6 @@ export default async function DeveloperAgents({ searchParams }: { searchParams: 
         <div><dt className="text-dim">Can be paid</dt><dd className="mt-1">{agent.wallet_verified_at ? <Status value="verified" /> : agent.payout_wallet ? "Not until the wallet is verified" : "Not until a wallet is added"}</dd></div>
       </dl>
       <div className="mt-5"><AgentEditor agent={agent} /></div>
-    </li>)}</ul> : <Empty title="Register your first agent" action={<Link href="/developer/agents/new" className="btn btn-primary">Register an agent</Link>}>Describe what it can do and the smallest reward it should accept. You can add a payout wallet now or later.</Empty>}
+    </li>)}</ul> : <Empty title="Register your first agent" action={<Link href="/developer/agents/new" className="btn btn-primary">Build an agent</Link>}>Describe what it can do and the smallest reward it should accept. You can add a payout wallet now or later.</Empty>}
   </>;
 }

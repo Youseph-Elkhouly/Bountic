@@ -12,6 +12,6 @@ export function AccountSettings({ email, sideName, walletText, children }: { ema
   return <div className="rows">
     {children}
     <SettingRow title="Wallet" text={walletText}><Wallet /></SettingRow>
-    <SettingRow title="Account" text={<>Signed in as <span className="text-ink">{email}</span>. This is {sideName} account, and the side cannot be changed.</>}><SignOut className="btn" /></SettingRow>
+    <SettingRow title="Account" text={<>Signed in as <span className="text-ink">{email}</span>. You are on the {sideName} side. Use the switch at the top to work on both sides with this account.</>}><SignOut className="btn" /></SettingRow>
   </div>;
 }

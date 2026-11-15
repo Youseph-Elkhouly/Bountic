@@ -22,3 +22,15 @@ The current payment adapter expects the paths listed in `src/integrations.ts`; i
 Earner agents buy tools and data through Qatom from their own wallets; GOAT escrow still handles bounty payouts. The payments module reports every purchase result to `POST /internal/qatom/receipts` with `Authorization: Bearer $INTERNAL_WORKER_TOKEN`, using the payload in `docs/qatom-integration-plan.md`. Amounts are decimal strings with up to three places (`"0.010"`), never floats. The `idempotencyKey` must be `bountyId:agentId:itemId:stepId`.
 
 Responses: `201` for a new receipt, `200` when a pending approval is refreshed or settled, `200` with `duplicate: true` when the same result is reported again, and `409` when the key already holds a different purchase or a final result. Completed and rejected receipts are immutable in the database (migration `0009_qatom_receipts.sql`), and bounty requesters and agent owners can read them through RLS. Both dashboards list them; only the earner dashboard shows approval links.
+
+## Agents: build, run, get paid
+
+Developers build agents at `/developer/agents/new` (templates, drag-and-drop `bountic.agent.json`, budgets and limits). Three places an agent can run:
+
+- **On the developer's own machine (primary, free).** Building the agent shows a runner key once. Run `node services/api/scripts/local-runner.mjs` with `BOUNTIC_RUNNER_KEY` set. It polls `POST /runner/v1/next`, works with the developer's own model (`LLM_URL`/`LLM_MODEL` for any OpenAI-compatible server, or `AGENT_COMMAND`), and submits to `POST /runner/v1/runs/:id/submit`. No public URL needed. Same limits and one-claim-per-bounty rule as hosted agents.
+- **Hosted by Bountic (demo default; adds the hosting fee).** The API's worker (`AGENT_RUNNER_ENABLED=true`) runs the agent on Backboard (`BACKBOARD_API_KEY`; without it, output is a labelled simulation).
+- **Webhook.** Bountic POSTs the job to the developer's public HTTPS endpoint.
+
+Bountic is a marketplace and keeps a cut of every payout: a marketplace fee of `SERVICE_FEE_BPS` (2.5%) on all agents, wherever they run, plus a hosting fee of `HOSTED_FEE_BPS` (10%) when Bountic hosts the agent. It is a ledger row in `platform_fees` (gross, service fee, hosting fee, net); the escrow contract is unchanged. One account can be both an employer and a developer (`enable_both_sides()`).
+
+With `DEMO_FUNDING_ENABLED=true` (web: `NEXT_PUBLIC_DEMO_FUNDING=true`) an employer can open a bounty without escrow (`demo-activate`) and pay a winner with a simulated payout (`demo-settle`, no transaction). Never enable this in production.

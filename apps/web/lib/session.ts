@@ -13,8 +13,8 @@ export const getSession = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { supabase, user: null, profile: null, profileError: null };
-  const { data: profile, error } = await supabase.from("profiles").select("role,display_name").eq("id", user.id).maybeSingle();
-  return { supabase, user, profile: profile as { role: Role | null; display_name: string | null } | null, profileError: error };
+  const { data: profile, error } = await supabase.from("profiles").select("role,display_name,dual_roles").eq("id", user.id).maybeSingle();
+  return { supabase, user, profile: profile as { role: Role | null; display_name: string | null; dual_roles: boolean } | null, profileError: error };
 });
 
 /**
@@ -26,6 +26,6 @@ export async function requireSide(side: Side) {
   if (!user) redirect("/login");
   if (profileError) return { ok: false as const, message: profileError.message };
   if (!profile?.role) redirect("/onboarding");
-  if (profile.role !== roleOf[side]) redirect(homeOf[sideOf[profile.role]]);
+  if (!profile.dual_roles && profile.role !== roleOf[side]) redirect(homeOf[sideOf[profile.role]]);
   return { ok: true as const, supabase, user, profile };
 }

@@ -4,13 +4,16 @@ import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { env, assertServerConfig } from "./env.js";
-import { admin, authenticate, recordAudit, userRole } from "./supabase.js";
-import { agentSchema, bountySchema, qatomReceiptSchema, roleSchema, submissionSchema } from "./schemas.js";
+import { admin, authenticate, canAct, recordAudit } from "./supabase.js";
+import { agentSchema, autopilotColumns, bountySchema, qatomReceiptSchema, roleSchema, submissionSchema } from "./schemas.js";
 import { planQatomReceiptWrite, qatomReceiptRow } from "./qatom.js";
 import { payments, requestMatches } from "./integrations.js";
 import { persistEligibleMatches } from "./matching.js";
 import { telegram } from "./telegram.js";
+import { agentExecutor, hashRunnerKey, isAllowedAgentEndpoint, looksLikeRunnerKey, maybeStartAgentWorker, newRunnerKey, nextLocalJob, platformCut, runStore, submitLocalRun, tickAgent, tickAll } from "./agents/index.js";
 import { hashLinkToken, isAllowedSubmissionUpload, isSafeExternalUrl, randomLinkToken, verifySharedSecret, verifyWalletSignature } from "@bountiq/security";
+
+const AGENT_PUBLIC_COLUMNS = "id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,created_at,autonomy_enabled,runtime,model,instructions,webhook_url,max_concurrent_jobs,max_jobs_per_day,bid_percent,max_bid_base_units,max_tokens_per_job,tool_budget_usd_tdn,auto_submit,memory_enabled,web_search_enabled,backboard_assistant_id,runner_key_prefix,runner_last_seen_at";
 
 type Variables = { userId: string; email: string };
 const app = new Hono<{ Variables: Variables }>();
@@ -52,7 +55,7 @@ app.get("/api/profile", async (c) => {
 });
 
 app.post("/api/bounties", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const parsed = bountySchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid bounty", details: parsed.error.issues }, 400);
   const value = parsed.data;
@@ -71,7 +74,7 @@ app.post("/api/bounties", async (c) => {
 });
 
 app.post("/api/bounties/:id/cancel", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data, error } = await admin.from("bounties").update({ status: "cancelled" })
     .eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "draft")
     .select("id,status").maybeSingle();
@@ -97,7 +100,7 @@ app.get("/api/bounties/:id", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-intent", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
   if (!bounty) return c.json({ error: "Bounty not found" }, 404);
   if (!["draft", "funding"].includes(bounty.status)) return c.json({ error: "Bounty is not in a fundable state" }, 409);
@@ -118,30 +121,35 @@ app.post("/api/bounties/:id/funding-intent", async (c) => {
 });
 
 app.post("/api/agents", async (c) => {
-  if (await userRole(c.get("userId")) !== "earner") return c.json({ error: "Earner role required" }, 403);
+  if (!(await canAct(c.get("userId"), "earner"))) return c.json({ error: "Earner role required" }, 403);
   const parsed = agentSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "Invalid agent", details: parsed.error.issues }, 400);
   const value = parsed.data;
+  if (value.runtime === "webhook" && !isAllowedAgentEndpoint(value.webhookUrl)) return c.json({ error: "A webhook agent needs a public HTTPS endpoint" }, 400);
   const { data, error } = await admin.from("agents").insert({
     owner_id: c.get("userId"), name: value.name, description: value.description,
     skills: value.skills, categories: value.categories, capabilities: value.capabilities,
     min_reward_base_units: value.minRewardBaseUnits, payout_wallet: value.payoutWallet ?? null, available: value.available,
-  }).select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,created_at").single();
+    ...autopilotColumns(value),
+  }).select(AGENT_PUBLIC_COLUMNS).single();
   if (error) return c.json({ error: "Could not register agent" }, 500);
   await recordAudit(c.get("userId"), "agent_registered", "agent", data.id);
   return c.json({ agent: data, walletVerified: false }, 201);
 });
 
 app.get("/api/agents", async (c) => {
-  const { data, error } = await admin.from("agents").select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at,created_at").eq("owner_id", c.get("userId")).order("created_at", { ascending: false });
+  const { data, error } = await admin.from("agents").select(AGENT_PUBLIC_COLUMNS).eq("owner_id", c.get("userId")).order("created_at", { ascending: false });
   if (error) return c.json({ error: "Could not load agents" }, 500);
   return c.json({ agents: data });
 });
 
 app.patch("/api/agents/:id", async (c) => {
-  const parsed = agentSchema.partial().safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success || !Object.keys(parsed.data ?? {}).length) return c.json({ error: "Invalid agent update" }, 400);
+  const raw = await c.req.json().catch(() => null) as Record<string, unknown> | null;
+  const parsed = agentSchema.partial().safeParse(raw);
+  if (!parsed.success || !raw || !Object.keys(raw).length) return c.json({ error: "Invalid agent update" }, 400);
   const value = parsed.data;
+  // .partial() keeps schema defaults; only change availability when the caller actually sent it.
+  if (!("available" in raw)) delete value.available;
   const update = {
     ...(value.name !== undefined ? { name: value.name } : {}),
     ...(value.description !== undefined ? { description: value.description } : {}),
@@ -151,9 +159,11 @@ app.patch("/api/agents/:id", async (c) => {
     ...(value.minRewardBaseUnits !== undefined ? { min_reward_base_units: value.minRewardBaseUnits } : {}),
     ...(value.payoutWallet !== undefined ? { payout_wallet: value.payoutWallet, wallet_verified_at: null } : {}),
     ...(value.available !== undefined ? { available: value.available } : {}),
+    ...autopilotColumns(value),
   };
+  if (value.webhookUrl && !isAllowedAgentEndpoint(value.webhookUrl)) return c.json({ error: "Webhook endpoint must be a public HTTPS address" }, 400);
   const { data, error } = await admin.from("agents").update(update).eq("id", c.req.param("id")).eq("owner_id", c.get("userId"))
-    .select("id,name,description,skills,categories,capabilities,min_reward_base_units,payout_wallet,available,wallet_verified_at").maybeSingle();
+    .select(AGENT_PUBLIC_COLUMNS).maybeSingle();
   if (error || !data) return c.json({ error: "Agent not found" }, 404);
   await recordAudit(c.get("userId"), "agent_updated", "agent", data.id);
   return c.json({ agent: data });
@@ -198,7 +208,7 @@ app.post("/api/telegram/connect", async (c) => {
 });
 
 app.post("/api/bounties/:id/respond", async (c) => {
-  if (await userRole(c.get("userId")) !== "earner") return c.json({ error: "Earner role required" }, 403);
+  if (!(await canAct(c.get("userId"), "earner"))) return c.json({ error: "Earner role required" }, 403);
   const body = await c.req.json().catch(() => null) as { agentId?: string; response?: string } | null;
   if (!body?.agentId || !z.string().uuid().safeParse(body.agentId).success || !["accepted", "declined"].includes(body.response || "")) return c.json({ error: "Valid agentId and response required" }, 400);
   const { data: agent } = await admin.from("agents").select("id").eq("id", body.agentId).eq("owner_id", c.get("userId")).maybeSingle();
@@ -263,7 +273,7 @@ app.post("/api/submissions/upload", async (c) => {
 app.get("/api/bounties/:id/submissions", async (c) => {
   const { data: bounty } = await admin.from("bounties").select("requester_id").eq("id", c.req.param("id")).maybeSingle();
   if (!bounty || bounty.requester_id !== c.get("userId")) return c.json({ error: "Bounty not found" }, 404);
-  const { data, error } = await admin.from("submissions").select("id,bounty_id,agent_id,proposed_amount_base_units,deliverable_type,deliverable_url,storage_path,description,submitted_at,agents(name,skills,payout_wallet,wallet_verified_at)").eq("bounty_id", c.req.param("id")).order("submitted_at", { ascending: false });
+  const { data, error } = await admin.from("submissions").select("id,bounty_id,agent_id,proposed_amount_base_units,deliverable_type,deliverable_url,storage_path,description,submitted_at,agents(name,skills,payout_wallet,wallet_verified_at,runtime)").eq("bounty_id", c.req.param("id")).order("submitted_at", { ascending: false });
   if (error) return c.json({ error: "Could not load submissions" }, 500);
   const rows = await Promise.all((data ?? []).map(async (submission) => {
     if (!submission.storage_path) return submission;
@@ -274,7 +284,7 @@ app.get("/api/bounties/:id/submissions", async (c) => {
 });
 
 app.post("/api/bounties/:id/select-winner", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { submissionId?: string } | null;
   if (!body?.submissionId || !z.string().uuid().safeParse(body.submissionId).success) return c.json({ error: "Valid submissionId required" }, 400);
   const { data: authorization, error } = await admin.rpc("authorize_bounty_winner", {
@@ -294,7 +304,7 @@ app.post("/api/bounties/:id/select-winner", async (c) => {
 
 
 app.post("/api/bounties/:id/settlement-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; authorizationId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.authorizationId || !z.string().uuid().safeParse(body.authorizationId).success) return c.json({ error: "Invalid settlement approval receipt" }, 400);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id,bounty_id,requester_id").eq("id", body.authorizationId).eq("bounty_id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
@@ -312,7 +322,7 @@ app.post("/api/bounties/:id/settlement-confirm", async (c) => {
 });
 
 app.post("/api/bounties/:id/settlement-finalize", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; authorizationId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.authorizationId || !z.string().uuid().safeParse(body.authorizationId).success) return c.json({ error: "Invalid settlement receipt" }, 400);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id,bounty_id,requester_id,submission_id,payout_amount_base_units").eq("id", body.authorizationId).eq("bounty_id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
@@ -329,7 +339,7 @@ app.post("/api/bounties/:id/settlement-finalize", async (c) => {
 });
 
 app.post("/api/bounties/:id/refund-intent", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const { data: bounty } = await admin.from("bounties").select("id,status,deadline,onchain_bounty_id,requester_id").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).maybeSingle();
   if (!bounty || bounty.status !== "active" || new Date(bounty.deadline) >= new Date()) return c.json({ error: "Bounty is not eligible for an expiry refund" }, 409);
   const { data: authorization } = await admin.from("settlement_authorizations").select("id").eq("bounty_id", bounty.id).maybeSingle();
@@ -341,7 +351,7 @@ app.post("/api/bounties/:id/refund-intent", async (c) => {
 });
 
 app.post("/api/bounties/:id/refund-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash)) return c.json({ error: "Invalid refund receipt" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "active").maybeSingle();
@@ -466,7 +476,7 @@ app.post("/api/telegram/webhook", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-ready", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash)) return c.json({ error: "Invalid create transaction hash" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "funding").maybeSingle();
@@ -482,7 +492,7 @@ app.post("/api/bounties/:id/funding-ready", async (c) => {
 });
 
 app.post("/api/bounties/:id/funding-confirm", async (c) => {
-  if (await userRole(c.get("userId")) !== "requester") return c.json({ error: "Requester role required" }, 403);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
   const body = await c.req.json().catch(() => null) as { txHash?: string; onchainBountyId?: string } | null;
   if (!body?.txHash || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash) || !body.onchainBountyId || !/^\d+$/.test(body.onchainBountyId)) return c.json({ error: "Invalid funding receipt" }, 400);
   const { data: bounty } = await admin.from("bounties").select("*").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).eq("status", "funding").maybeSingle();
@@ -593,6 +603,191 @@ app.post("/internal/qatom/receipts", async (c) => {
   return c.json({ receipt: data, duplicate: false }, plan === "insert" ? 201 : 200);
 });
 
+// ---------------------------------------------------------------------------
+// Autonomous agents
+// ---------------------------------------------------------------------------
+
+const RUN_COLUMNS = "id,agent_id,bounty_id,status,match_score,bid_base_units,deliverable,submission_id,executor,tokens_used,error,started_at,finished_at,backboard_thread_id,bounties(title,status,max_budget_base_units,deadline)";
+
+/** Live activity for every agent the caller owns (or one agent with ?agentId=). The dashboard polls this. */
+app.get("/api/agent-activity", async (c) => {
+  const agentId = c.req.query("agentId");
+  let query = admin.from("agents").select("id,name,autonomy_enabled,available,max_concurrent_jobs,max_jobs_per_day").eq("owner_id", c.get("userId"));
+  if (agentId) query = query.eq("id", agentId);
+  const { data: agents, error } = await query;
+  if (error) return c.json({ error: "Could not load agents" }, 500);
+  const ids = (agents ?? []).map((agent) => agent.id);
+  if (!ids.length) return c.json({ agents: [], runs: [], events: [] });
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [runs, events, today] = await Promise.all([
+    admin.from("agent_runs").select(RUN_COLUMNS).in("agent_id", ids).order("started_at", { ascending: false }).limit(30),
+    admin.from("agent_run_events").select("id,run_id,agent_id,kind,message,data,created_at").in("agent_id", ids).order("created_at", { ascending: false }).limit(60),
+    admin.from("agent_runs").select("agent_id,status").in("agent_id", ids).gte("started_at", since),
+  ]);
+  if (runs.error || events.error || today.error) return c.json({ error: "Could not load agent activity" }, 500);
+  const usage = new Map<string, { today: number; open: number }>();
+  for (const row of today.data ?? []) {
+    const entry = usage.get(row.agent_id) ?? { today: 0, open: 0 };
+    if (row.status !== "skipped") entry.today++;
+    if (row.status === "claimed" || row.status === "working") entry.open++;
+    usage.set(row.agent_id, entry);
+  }
+  return c.json({
+    agents: (agents ?? []).map((agent) => ({ ...agent, jobsToday: usage.get(agent.id)?.today ?? 0, openJobs: usage.get(agent.id)?.open ?? 0 })),
+    runs: runs.data, events: events.data,
+  });
+});
+
+/** LLMs available to hosted agents, from Backboard's model catalog (cached). */
+const FALLBACK_MODELS = [
+  { value: "auto", label: "Backboard default" },
+  { value: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4 (Anthropic)" },
+  { value: "openai/gpt-4o", label: "GPT-4o (OpenAI)" },
+];
+let modelCache: { at: number; models: Array<{ value: string; label: string }> } | null = null;
+app.get("/api/agent-models", async (c) => {
+  if (!env.backboardApiKey) return c.json({ source: "fallback", backboard: false, models: FALLBACK_MODELS });
+  if (modelCache && Date.now() - modelCache.at < 10 * 60 * 1000) return c.json({ source: "backboard", backboard: true, models: modelCache.models });
+  try {
+    const response = await fetch(`${env.backboardApiUrl.replace(/\/+$/, "")}/models?model_type=llm&limit=500`, { headers: { "X-API-Key": env.backboardApiKey }, signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(String(response.status));
+    const data = await response.json() as unknown;
+    const rows = (Array.isArray(data) ? data : Array.isArray((data as { models?: unknown }).models) ? (data as { models: unknown[] }).models : []) as Array<Record<string, unknown>>;
+    const models = rows.map((row) => {
+      const provider = String(row.provider ?? row.llm_provider ?? "").trim();
+      const name = String(row.name ?? row.model_name ?? row.id ?? "").trim();
+      return provider && name && /^[a-zA-Z0-9._:/-]{1,80}$/.test(`${provider}/${name}`) ? { value: `${provider}/${name}`, label: `${name} (${provider})` } : null;
+    }).filter((item): item is { value: string; label: string } => Boolean(item)).slice(0, 400);
+    if (!models.length) throw new Error("empty catalog");
+    modelCache = { at: Date.now(), models: [{ value: "auto", label: "Backboard default" }, ...models] };
+    return c.json({ source: "backboard", backboard: true, models: modelCache.models });
+  } catch {
+    return c.json({ source: "fallback", backboard: true, models: FALLBACK_MODELS });
+  }
+});
+
+/** "Run now": one immediate scheduling pass for an agent, still bound by every limit. */
+app.post("/api/agents/:id/run-now", async (c) => {
+  const agent = await runStore.getAgent(c.req.param("id"));
+  if (!agent || agent.owner_id !== c.get("userId")) return c.json({ error: "Agent not found" }, 404);
+  if (!agent.available) return c.json({ error: "Agent is paused. Mark it available first." }, 409);
+  const result = await tickAgent(runStore, agentExecutor, agent, { force: true });
+  await recordAudit(c.get("userId"), "agent_run_now", "agent", agent.id, result);
+  return c.json({ result });
+});
+
+/** Owner approves a draft held for review (auto-submit off, or autopilot switched off mid-task). */
+app.post("/api/agent-runs/:id/submit", async (c) => {
+  const { data: run } = await admin.from("agent_runs").select("id,agent_id,bounty_id,status,deliverable,bid_base_units,agents!inner(owner_id)").eq("id", c.req.param("id")).maybeSingle();
+  const owner = (run?.agents as unknown as { owner_id: string } | null)?.owner_id;
+  if (!run || owner !== c.get("userId")) return c.json({ error: "Run not found" }, 404);
+  if (run.status !== "awaiting_review" || !run.deliverable || !run.bid_base_units) return c.json({ error: "This run has no draft waiting for review" }, 409);
+  const bounty = await runStore.getBounty(run.bounty_id);
+  if (!bounty || bounty.status !== "active" || new Date(bounty.deadline).getTime() <= Date.now()) return c.json({ error: "Bounty is no longer accepting submissions" }, 409);
+  const { data: claimed } = await admin.from("agent_runs").update({ status: "submitted", finished_at: new Date().toISOString() }).eq("id", run.id).eq("status", "awaiting_review").select("id").maybeSingle();
+  if (!claimed) return c.json({ error: "This draft was already handled" }, 409);
+  const submission = await runStore.createSubmission({ bountyId: run.bounty_id, agentId: run.agent_id, proposedAmountBaseUnits: String(run.bid_base_units), deliverableType: "text", deliverableUrl: null, description: run.deliverable.slice(0, 8000) });
+  await admin.from("agent_runs").update({ submission_id: submission.id }).eq("id", run.id);
+  await runStore.logEvent({ agentId: run.agent_id, runId: run.id, kind: "submitted", message: `Owner approved the draft; submitted to "${bounty.title}".`, data: { bountyId: bounty.id, submissionId: submission.id } });
+  await recordAudit(c.get("userId"), "agent_draft_approved", "agent_run", run.id, { submissionId: submission.id });
+  return c.json({ submission });
+});
+
+/**
+ * DEMO ONLY (DEMO_FUNDING_ENABLED=true): activates a bounty without on-chain escrow so agents
+ * can pick it up while the payments integration is finished. Disabled by default; audited.
+ */
+app.post("/api/bounties/:id/demo-activate", async (c) => {
+  if (!env.demoFundingEnabled) return c.json({ error: "Demo funding is disabled on this server" }, 404);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
+  const { data: bounty } = await admin.from("bounties").update({ status: "active" }).eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).in("status", ["draft", "funding"]).select("*").maybeSingle();
+  if (!bounty) return c.json({ error: "Draft bounty not found" }, 404);
+  await recordAudit(c.get("userId"), "bounty_demo_activated_without_escrow", "bounty", bounty.id);
+  try {
+    const result = await requestMatches({ bountyId: bounty.id, title: bounty.title, description: bounty.description, category: bounty.category, requiredSkills: bounty.required_skills, budgetBaseUnits: String(bounty.max_budget_base_units), deadline: bounty.deadline });
+    const matchCount = await persistEligibleMatches(bounty, result.matches);
+    return c.json({ status: "active", demo: true, matchSource: result.source, matchCount });
+  } catch {
+    return c.json({ status: "active", demo: true, matchDispatch: "retry_required" });
+  }
+});
+
+/** Owner creates (or rotates) the key their own-hardware runner uses. Shown once; only a hash is stored. */
+app.post("/api/agents/:id/runner-key", async (c) => {
+  const key = newRunnerKey();
+  const { data, error } = await admin.from("agents").update({ runner_key_hash: hashRunnerKey(key), runner_key_prefix: key.slice(0, 12), runner_last_seen_at: null })
+    .eq("id", c.req.param("id")).eq("owner_id", c.get("userId")).select("id").maybeSingle();
+  if (error || !data) return c.json({ error: "Agent not found" }, 404);
+  await recordAudit(c.get("userId"), "agent_runner_key_rotated", "agent", data.id);
+  return c.json({ key, prefix: key.slice(0, 12), note: "Store this key now; it cannot be shown again." });
+});
+
+/** Own-hardware runner API. Authenticated by the agent's runner key, not a user session. */
+async function runnerAgent(c: { req: { header: (name: string) => string | undefined } }) {
+  const token = (c.req.header("authorization") || "").match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
+  if (!looksLikeRunnerKey(token)) return null;
+  const { data } = await admin.from("agents").select("id").eq("runner_key_hash", hashRunnerKey(token)).maybeSingle();
+  if (!data) return null;
+  await admin.from("agents").update({ runner_last_seen_at: new Date().toISOString() }).eq("id", data.id);
+  return runStore.getAgent(data.id);
+}
+
+app.get("/runner/v1/me", async (c) => {
+  const agent = await runnerAgent(c);
+  if (!agent) return c.json({ error: "Invalid runner key" }, 401);
+  return c.json({ agent: { id: agent.id, name: agent.name, runtime: agent.runtime, autonomyEnabled: agent.autonomy_enabled, available: agent.available } });
+});
+
+/** Claims the best eligible bounty (same limits and fit rules as hosted agents) or says why there is none. */
+app.post("/runner/v1/next", async (c) => {
+  const agent = await runnerAgent(c);
+  if (!agent) return c.json({ error: "Invalid runner key" }, 401);
+  const { job, reason } = await nextLocalJob(runStore, agent);
+  return c.json({ job, reason });
+});
+
+app.post("/runner/v1/runs/:id/submit", async (c) => {
+  const agent = await runnerAgent(c);
+  if (!agent) return c.json({ error: "Invalid runner key" }, 401);
+  const body = await c.req.json().catch(() => null) as { deliverable?: unknown } | null;
+  if (typeof body?.deliverable !== "string") return c.json({ error: "deliverable (string) required" }, 400);
+  const result = await submitLocalRun(runStore, agent, c.req.param("id"), body.deliverable);
+  return result.ok ? c.json({ submissionId: result.submissionId || null, held: result.held }) : c.json({ error: result.error }, result.status as 400 | 404 | 409);
+});
+
+/**
+ * DEMO ONLY (DEMO_FUNDING_ENABLED=true): picks the winner and records a SIMULATED payout (no on-chain tx)
+ * with the platform cut: SERVICE_FEE_BPS (2.5%) on every payout, plus HOSTED_FEE_BPS (10%) when Bountic hosts the agent.
+ */
+app.post("/api/bounties/:id/demo-settle", async (c) => {
+  if (!env.demoFundingEnabled) return c.json({ error: "Demo funding is disabled on this server" }, 404);
+  if (!(await canAct(c.get("userId"), "requester"))) return c.json({ error: "Requester role required" }, 403);
+  const body = await c.req.json().catch(() => null) as { submissionId?: string } | null;
+  if (!body?.submissionId || !z.string().uuid().safeParse(body.submissionId).success) return c.json({ error: "Valid submissionId required" }, 400);
+  const { data: bounty } = await admin.from("bounties").select("id,requester_id,status,max_budget_base_units").eq("id", c.req.param("id")).eq("requester_id", c.get("userId")).in("status", ["active", "review"]).maybeSingle();
+  if (!bounty) return c.json({ error: "Open bounty not found" }, 404);
+  const { data: submission } = await admin.from("submissions").select("id,agent_id,proposed_amount_base_units").eq("id", body.submissionId).eq("bounty_id", bounty.id).maybeSingle();
+  if (!submission) return c.json({ error: "Submission not found" }, 404);
+  const { data: agent } = await admin.from("agents").select("runtime,name").eq("id", submission.agent_id).maybeSingle();
+  const gross = String(submission.proposed_amount_base_units);
+  if (BigInt(gross) > BigInt(String(bounty.max_budget_base_units))) return c.json({ error: "Submission exceeds the budget" }, 409);
+  const cut = platformCut((agent?.runtime ?? "hosted") as "hosted" | "local" | "webhook", gross, { serviceBps: env.serviceFeeBps, hostedBps: env.hostedFeeBps });
+  const { data: closed } = await admin.from("bounties").update({ status: "settled" }).eq("id", bounty.id).in("status", ["active", "review"]).select("id").maybeSingle();
+  if (!closed) return c.json({ error: "Bounty was already settled" }, 409);
+  await admin.from("submissions").update({ winner: false }).eq("bounty_id", bounty.id);
+  await admin.from("submissions").update({ winner: true }).eq("id", submission.id);
+  await admin.from("payments").insert({ bounty_id: bounty.id, kind: "settlement", status: "confirmed", amount_base_units: gross, submission_id: submission.id, confirmed_at: new Date().toISOString() });
+  await admin.from("platform_fees").insert({ bounty_id: bounty.id, agent_id: submission.agent_id, submission_id: submission.id, runtime: agent?.runtime ?? "hosted", gross_base_units: gross, fee_bps: cut.feeBps, fee_base_units: cut.fee, net_base_units: cut.net, service_fee_bps: cut.serviceBps, hosting_fee_bps: cut.hostingBps, service_fee_base_units: cut.serviceFee, hosting_fee_base_units: cut.hostingFee, simulated: true });
+  await recordAudit(c.get("userId"), "bounty_demo_settled_without_escrow", "bounty", bounty.id, { submissionId: submission.id, ...cut });
+  return c.json({ status: "settled", simulated: true, agent: agent?.name ?? null, runtime: agent?.runtime ?? "hosted", ...cut });
+});
+
+/** For an external scheduler (cron) when the in-process worker is off. */
+app.post("/internal/agents/tick", async (c) => {
+  if (!env.internalWorkerToken || !verifySharedSecret(c.req.header("authorization")?.replace(/^Bearer\s+/i, ""), env.internalWorkerToken)) return c.json({ error: "Unauthorized" }, 401);
+  return c.json({ results: await tickAll(runStore, agentExecutor) });
+});
+
 app.onError((error, c) => {
   console.error("api error", error.message);
   return c.json({ error: "Internal server error" }, 500);
@@ -603,6 +798,7 @@ if (process.env.NODE_ENV !== "test") {
   const { serve } = await import("@hono/node-server");
   serve({ fetch: app.fetch, port: env.port });
   console.log(`Bountiq API listening on ${env.port}`);
+  maybeStartAgentWorker();
 }
 
 export default app;

@@ -1,3 +1,4 @@
+import { SideSwitch } from "@/components/shell/SideSwitch";
 import { SignOut } from "@/components/shell/SignOut";
 import { Tabs, type Tab } from "@/components/shell/Tabs";
 import { Wallet } from "@/components/shell/Wallet";
@@ -25,7 +26,7 @@ const config: Record<Side, { name: string; root: string; tabs: Tab[] }> = {
 };
 
 /** Frame for one platform: identity and wallet on top, that side's own tabs beneath. */
-export function AppShell({ side, email, children }: { side: Side; email: string; children: React.ReactNode }) {
+export function AppShell({ side, email, dual = false, children }: { side: Side; email: string; dual?: boolean; children: React.ReactNode }) {
   const { name, root, tabs } = config[side];
   return <div className="flex min-h-dvh flex-col">
     <header className="border-b border-rule">
@@ -37,6 +38,7 @@ export function AppShell({ side, email, children }: { side: Side; email: string;
         </div>
         <div className="flex items-center gap-4">
           <span className="max-w-[14rem] truncate text-[13px] text-dim max-md:hidden" title={email}>{email}</span>
+          <SideSwitch side={side} dual={dual} />
           <Wallet />
           <SignOut className="text-[13px] text-dim hover:text-ink max-sm:hidden" />
         </div>

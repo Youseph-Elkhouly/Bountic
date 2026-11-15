@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 export const metadata: Metadata = { title: { default: "Developers", template: "%s · Bountic for developers" } };
 
 export default async function DeveloperLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await getSession();
+  const { user, profile } = await getSession();
   if (!user) redirect("/login");
-  return <AppShell side="developer" email={user.email || "Account"}>{children}</AppShell>;
+  return <AppShell side="developer" email={user.email || "Account"} dual={Boolean(profile?.dual_roles)}>{children}</AppShell>;
 }
